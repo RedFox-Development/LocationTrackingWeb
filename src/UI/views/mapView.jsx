@@ -3,7 +3,7 @@ import { useLazyQuery } from '@apollo/client/react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon } from 'react-leaflet'
 import L from 'leaflet'
 import { GET_UPDATES } from '../../api/graphql/team'
-import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds, combineBounds } from '../../utils/geofence'
+import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
 import 'leaflet/dist/leaflet.css'
 import { EventHeader } from '../../components/EventHeader'
 
@@ -68,17 +68,59 @@ function MapView({ event, teams }) {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [refreshInterval, setRefreshInterval] = useState(5000)
   const [mapCenter, setMapCenter] = useState([20, 0])
-  const [mapZoom, setMapZoom] = useState(5)
+  const [mapZoom] = useState(5)
   const [geofence, setGeofence] = useState(null)
   const [geofenceBreaches, setGeofenceBreaches] = useState({})
   const mapRef = useRef(null)
   const intervalRef = useRef(null)
+  const geofenceRef = useRef(null)
 
   // Apollo lazy queries for team locations
   const [getUpdates] = useLazyQuery(GET_UPDATES)
 
+  const resetMapView = () => {
+    const activeGeofence = geofenceRef.current
+    const hasGeofence = activeGeofence && activeGeofence.length >= 3
+    const allLatLons = Object.values(teamLocations).map(loc => ({
+      lat: loc.latest.lat,
+      lon: loc.latest.lon
+    }))
+
+    let activeBounds = null
+    if (hasGeofence) {
+      activeBounds = getPolygonBounds(activeGeofence)
+    } else if (allLatLons.length > 0) {
+      activeBounds = getPointsBounds(allLatLons)
+    }
+
+    if (activeBounds && mapRef.current) {
+      const latRange = activeBounds.maxLat - activeBounds.minLat
+      const lonRange = activeBounds.maxLon - activeBounds.minLon
+      const latPadding = Math.max(latRange * 0.1, 0.001)
+      const lonPadding = Math.max(lonRange * 0.1, 0.001)
+
+      const paddedBounds = [
+        [activeBounds.minLat - latPadding, activeBounds.minLon - lonPadding],
+        [activeBounds.maxLat + latPadding, activeBounds.maxLon + lonPadding]
+      ]
+
+      const targetCenter = [
+        (activeBounds.minLat + activeBounds.maxLat) / 2,
+        (activeBounds.minLon + activeBounds.maxLon) / 2
+      ]
+
+      setMapCenter(targetCenter)
+
+      const leafletBounds = L.latLngBounds(paddedBounds)
+      const targetZoom = mapRef.current.getBoundsZoom(leafletBounds, false, [50, 50])
+      mapRef.current.setView(targetCenter, targetZoom)
+    }
+  }
+
   const fetchLocationData = async () => {
     if (!event || !teams || teams.length === 0) return
+
+    const activeGeofence = geofenceRef.current
 
     try {
       const locationsPromises = teams.map(async (team) => {
@@ -122,9 +164,9 @@ function MapView({ event, teams }) {
           }
 
           // Check geofence breach
-          if (geofence && geofence.length >= 3) {
+          if (activeGeofence && activeGeofence.length >= 3) {
             const latest = result.updates[result.updates.length - 1]
-            const isInside = isPointInPolygon(latest.lat, latest.lon, geofence)
+            const isInside = isPointInPolygon(latest.lat, latest.lon, activeGeofence)
             
             if (!isInside) {
               breaches[result.teamId] = {
@@ -141,50 +183,6 @@ function MapView({ event, teams }) {
       
       setTeamLocations(locations)
       setGeofenceBreaches(breaches)
-      
-      // Calculate map bounds to fit both geofence and team locations
-      const boundsArray = []
-      
-      if (geofence && geofence.length > 0) {
-        boundsArray.push(getPolygonBounds(geofence))
-      }
-      
-      const allLatLons = Object.values(locations).map(loc => ({ 
-        lat: loc.latest.lat, 
-        lon: loc.latest.lon 
-      }))
-      
-      if (allLatLons.length > 0) {
-        boundsArray.push(getPointsBounds(allLatLons))
-      }
-      
-      // Set map bounds to show all relevant data
-      if (boundsArray.length > 0) {
-        const combinedBounds = combineBounds(boundsArray)
-        
-        // Add padding (10% of range)
-        const latRange = combinedBounds.maxLat - combinedBounds.minLat
-        const lonRange = combinedBounds.maxLon - combinedBounds.minLon
-        const latPadding = latRange * 0.1
-        const lonPadding = lonRange * 0.1
-        
-        const paddedBounds = [
-          [combinedBounds.minLat - latPadding, combinedBounds.minLon - lonPadding],
-          [combinedBounds.maxLat + latPadding, combinedBounds.maxLon + lonPadding]
-        ]
-        
-        setMapCenter([
-          (combinedBounds.minLat + combinedBounds.maxLat) / 2,
-          (combinedBounds.minLon + combinedBounds.maxLon) / 2
-        ])
-        
-        // Fit bounds with animation
-        if (mapRef.current) {
-          setTimeout(() => {
-            mapRef.current.fitBounds(paddedBounds, { padding: [50, 50] })
-          }, 100)
-        }
-      }
     } catch (error) {
       console.error('Error fetching location data:', error)
     }
@@ -208,8 +206,12 @@ function MapView({ event, teams }) {
       loadedGeofence = getGeofence(event.id)
     }
     setGeofence(loadedGeofence)
+    geofenceRef.current = loadedGeofence
     
-    fetchLocationData()
+    // Load location data and reset map view immediately
+    fetchLocationData().then(() => {
+      resetMapView()
+    })
 
     if (autoRefresh) {
       intervalRef.current = setInterval(fetchLocationData, refreshInterval)
@@ -243,6 +245,33 @@ function MapView({ event, teams }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          zIndex: 1000,
+          backgroundColor: 'white',
+          padding: '0.5rem',
+          borderRadius: '0.25rem',
+          boxShadow: '0 1px 5px rgba(0,0,0,0.2)'
+        }}>
+          <button
+            onClick={resetMapView}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#2196f3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.25rem',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: '500'
+            }}
+          >
+            🎯 Reset View
+          </button>
+        </div>
         
         {/* Render geofence polygon */}
         {geofence && geofence.length >= 3 && (

@@ -8,8 +8,94 @@ import { MapContainer, TileLayer, FeatureGroup } from 'react-leaflet'
 import { EditControl } from 'react-leaflet-draw'
 import { useMutation } from '@apollo/client/react'
 import { UPDATE_EVENT_GEOFENCE, DELETE_EVENT_GEOFENCE } from '../api/graphql/event'
-import { getGeofence, saveGeofence } from '../utils/geofence'
+import { getGeofence, saveGeofence, deleteGeofence } from '../utils/geofence'
 import 'leaflet-draw/dist/leaflet.draw.css'
+
+function findLatLngRing(coords) {
+  if (!Array.isArray(coords) || coords.length === 0) return null
+
+  const first = coords[0]
+  if (
+    first &&
+    typeof first === 'object' &&
+    typeof first.lat === 'number' &&
+    typeof first.lng === 'number'
+  ) {
+    return coords
+  }
+
+  for (const value of coords) {
+    const ring = findLatLngRing(value)
+    if (ring) return ring
+  }
+
+  return null
+}
+
+function extractPolygonFromGeoJson(layer) {
+  const geoJson = layer?.toGeoJSON?.()
+  const coordinates = geoJson?.geometry?.coordinates
+  if (!Array.isArray(coordinates) || coordinates.length === 0) return null
+
+  const ring = coordinates[0]
+  if (!Array.isArray(ring) || ring.length < 3) return null
+
+  const polygon = ring
+    .map((point) => {
+      if (!Array.isArray(point) || point.length < 2) return null
+      const [lng, lat] = point
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+      return [lat, lng]
+    })
+    .filter(Boolean)
+
+  if (polygon.length > 1) {
+    const [firstLat, firstLng] = polygon[0]
+    const [lastLat, lastLng] = polygon[polygon.length - 1]
+    if (firstLat === lastLat && firstLng === lastLng) {
+      polygon.pop()
+    }
+  }
+
+  return polygon.length >= 3 ? polygon : null
+}
+
+function extractPolygonCoordinates(layer) {
+  const geoJsonPolygon = extractPolygonFromGeoJson(layer)
+  if (geoJsonPolygon) {
+    return geoJsonPolygon
+  }
+
+  const latLngs = layer?.toLatLngs?.()
+  const ring = findLatLngRing(latLngs)
+  if (!ring || ring.length < 3) return null
+
+  const polygon = ring
+    .map((point) => {
+      if (point && typeof point.lat === 'number' && typeof point.lng === 'number') {
+        return [point.lat, point.lng]
+      }
+      if (Array.isArray(point) && point.length >= 2) {
+        const [lat, lng] = point
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          return [lat, lng]
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+    .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng))
+
+  if (polygon.length > 1) {
+    const [firstLat, firstLng] = polygon[0]
+    const [lastLat, lastLng] = polygon[polygon.length - 1]
+    if (firstLat === lastLat && firstLng === lastLng) {
+      polygon.pop()
+    }
+  }
+
+  return polygon.length >= 3 ? polygon : null
+}
 
 function GeofenceEditor({ event, onGeofenceChange }) {
   // Initialize geofence from event object or localStorage
@@ -35,9 +121,14 @@ function GeofenceEditor({ event, onGeofenceChange }) {
   const [updateGeofence] = useMutation(UPDATE_EVENT_GEOFENCE, {
     onCompleted: (data) => {
       console.log('[GeofenceEditor] Geofence saved to API:', data)
-      // Update localStorage as backup
-      if (geofence) {
-        saveGeofence(event.id, geofence)
+      if (data?.updateEventGeofence?.geofence_data) {
+        try {
+          const savedPolygon = JSON.parse(data.updateEventGeofence.geofence_data)
+          setGeofence(savedPolygon)
+          saveGeofence(event.id, savedPolygon)
+        } catch {
+          saveGeofence(event.id, geofence)
+        }
       }
       setApiError(null)
     },
@@ -80,9 +171,13 @@ function GeofenceEditor({ event, onGeofenceChange }) {
   }, [event?.id])
 
   const handleGeofenceCreate = async (e) => {
-    const layer = e.layer
-    const coords = layer.toLatLngs()
-    const polygon = coords.map((point) => [point.lat, point.lng])
+    const layer = e?.layer || e?.target || null
+    const polygon = extractPolygonCoordinates(layer)
+    if (!polygon) {
+      console.error('[GeofenceEditor] Invalid geofence shape from draw event:', e)
+      setApiError('Invalid geofence shape. Please draw a polygon with at least 3 points.')
+      return
+    }
 
     setGeofence(polygon)
     setApiLoading(true)
@@ -95,6 +190,7 @@ function GeofenceEditor({ event, onGeofenceChange }) {
           geofenceData: JSON.stringify(polygon)
         }
       })
+      saveGeofence(event.id, polygon)
       
       if (onGeofenceChange) {
         onGeofenceChange(polygon)
@@ -109,13 +205,25 @@ function GeofenceEditor({ event, onGeofenceChange }) {
   }
 
   const handleGeofenceEdit = async (e) => {
-    const layers = e.layers
+    const layers = e?.layers
     
     let updatedPolygon = null
-    layers.forEach((layer) => {
-      const coords = layer.toLatLngs()
-      updatedPolygon = coords.map((point) => [point.lat, point.lng])
-    })
+
+    if (layers?.eachLayer) {
+      layers.eachLayer((layer) => {
+        const polygon = extractPolygonCoordinates(layer)
+        if (polygon) {
+          updatedPolygon = polygon
+        }
+      })
+    } else if (layers?.forEach) {
+      layers.forEach((layer) => {
+        const polygon = extractPolygonCoordinates(layer)
+        if (polygon) {
+          updatedPolygon = polygon
+        }
+      })
+    }
 
     if (!updatedPolygon) return
 
@@ -130,6 +238,7 @@ function GeofenceEditor({ event, onGeofenceChange }) {
           geofenceData: JSON.stringify(updatedPolygon)
         }
       })
+      saveGeofence(event.id, updatedPolygon)
       
       if (onGeofenceChange) {
         onGeofenceChange(updatedPolygon)
@@ -155,6 +264,7 @@ function GeofenceEditor({ event, onGeofenceChange }) {
       })
       
       setGeofence(null)
+      deleteGeofence(event.id)
       
       if (onGeofenceChange) {
         onGeofenceChange(null)
