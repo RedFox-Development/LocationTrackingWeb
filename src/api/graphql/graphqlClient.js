@@ -5,7 +5,7 @@ import {
   HttpLink
 } from '@apollo/client'
 
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || process.env.VITE_API_URL
 
 console.log('[Apollo Client] Using API URL:', API_URL)
 
