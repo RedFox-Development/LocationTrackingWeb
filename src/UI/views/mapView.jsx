@@ -26,7 +26,7 @@ const createTeamIcon = (color, isHistoryDot = false) => {
   // Full-size marker for latest location
   return L.icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
         <circle cx="12" cy="12" r="11" fill="${color}" stroke="white" stroke-width="2"/>
         <circle cx="12" cy="12" r="3" fill="white"/>
       </svg>
