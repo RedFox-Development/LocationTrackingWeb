@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client/react'
 import { GET_TEAMS } from './api/graphql/team'
 
 import ProtectedRoute from './components/ProtectedRoute'
+import AppHeaderName from './components/AppHeaderName'
 import LoginPage from './routes/LoginPage'
 import SetupPage from './routes/SetupPage'
 import EventPage from './routes/EventPage'
@@ -14,28 +15,33 @@ import './UI/style/App.css'
 
 const App = () => {
   const location = useLocation()
+  // Initialize state from localStorage and update on pathname changes
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    // Initialize from localStorage on mount
     const eventData = localStorage.getItem('currentEvent')
     return !!eventData
   })
   const [currentEvent, setCurrentEvent] = useState(() => {
-    // Initialize from localStorage on mount
     const eventData = localStorage.getItem('currentEvent')
     return eventData ? JSON.parse(eventData) : null
   })
   const lockSomeFeatures = true;
 
   useEffect(() => {
-    // Check if user has event stored (means they logged in)
-    const eventData = localStorage.getItem('currentEvent')
-    const event = eventData ? JSON.parse(eventData) : null
-    setIsLoggedIn(!!event)
-    setCurrentEvent(event)
+    // Update state when pathname changes (e.g., after login/logout)
+    const checkAuth = () => {
+      const eventData = localStorage.getItem('currentEvent')
+      const event = eventData ? JSON.parse(eventData) : null
+      setIsLoggedIn(!!event)
+      setCurrentEvent(event)
+    }
+    
+    // Use setTimeout to avoid synchronous setState in effect
+    const timeoutId = setTimeout(checkAuth, 0)
+    return () => clearTimeout(timeoutId)
   }, [location.pathname])
 
   // Poll for teams data when logged in
-  const { loading, error, data } = useQuery(GET_TEAMS, {
+  const { error, data } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id },
     skip: !isLoggedIn || !currentEvent?.id,
     pollInterval: 60000,
@@ -56,7 +62,7 @@ const App = () => {
     <>
       {showHeader && (
         <header className="app-header">
-          <h1>Location Tracker - Event Manager</h1>
+          <AppHeaderName />
           <nav>
             {isLoggedIn && (
               <>

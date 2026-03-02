@@ -42,6 +42,23 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+.app-header-name {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-header-name h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.app-logo {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 0.9rem;
+}
+
 .app-header h1 {
   margin-bottom: 1rem;
   font-size: 1.8rem;
@@ -1105,7 +1122,7 @@ body {
 }
 
 .info-card {
-  background: white;
+  background: #ffffff;
   padding: 2rem;
   border-radius: 12px;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
