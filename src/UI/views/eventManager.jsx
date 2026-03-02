@@ -185,7 +185,8 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
   }
 
   const generateQRData = (team) => {
-    const teamExpiration = team.expiration_date || expirationDate
+    // Use the QR config expirationDate (user can modify this)
+    const teamExpiration = expirationDate
     // Convert to Unix timestamp in milliseconds for Android app
     let expirationTimestamp = null
     if (teamExpiration) {
@@ -327,13 +328,21 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
                         <div className="team-color-indicator" style={{ backgroundColor: team.color || '#3b82f6' }}></div>
                         <div style={{ flex: 1 }}>
                           <span className="team-name">{team.name}</span>
-                          {team.expiration_date && (
-                            <div style={{ fontSize: '0.85rem', color: expired ? 'var(--error-color)' : expiringSoon ? '#f39c12' : 'var(--text-tertiary)' }}>
-                              Expires: {new Date(team.expiration_date).toLocaleDateString()}
-                              {expired && ' (EXPIRED)'}
-                              {expiringSoon && !expired && ' (Soon)'}
-                            </div>
-                          )}
+                          {team.expiration_date && (() => {
+                            try {
+                              const expDate = new Date(team.expiration_date)
+                              if (isNaN(expDate.getTime())) return null
+                              return (
+                                <div style={{ fontSize: '0.85rem', color: expired ? 'var(--error-color)' : expiringSoon ? '#f39c12' : 'var(--text-tertiary)' }}>
+                                  Expires: {expDate.toLocaleDateString()}
+                                  {expired && ' (EXPIRED)'}
+                                  {expiringSoon && !expired && ' (Soon)'}
+                                </div>
+                              )
+                            } catch (e) {
+                              return null
+                            }
+                          })()}
                         </div>
                         <button
                           onClick={(e) => {

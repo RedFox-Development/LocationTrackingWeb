@@ -27,11 +27,11 @@ function EventSetup({ onEventCreated }) {
       localStorage.setItem('currentEvent', JSON.stringify(newEvent))
       localStorage.setItem('currentTeams', JSON.stringify([]))
       
-      // Call callback and redirect
+      // Call callback
       if (onEventCreated) {
         onEventCreated()
       }
-      navigate('/event')
+      // Don't auto-navigate - let user see keycode and choose where to go
     },
     onError: (error) => {
       setError(error.message || 'Failed to create event')

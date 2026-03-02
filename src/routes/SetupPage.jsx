@@ -2,10 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import EventSetup from '../UI/views/eventSetup'
 
 function SetupPage() {
-  const navigate = useNavigate()
-
   const handleEventCreated = () => {
-    navigate('/event')
+    // Event created - success screen will show with navigation buttons
   }
 
   return (
