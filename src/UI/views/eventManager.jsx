@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useMutation } from '@apollo/client/react'
 import { QRCode } from 'react-qrcode-logo'
-import { CREATE_TEAM, UPDATE_TEAM_COLOR } from '../../api/graphql/team'
+import { CREATE_TEAM, UPDATE_TEAM_COLOR, DELETE_TEAM } from '../../api/graphql/team'
 import { getRandomColor } from '../../utils/colorPalette'
 import { getImageDataUri } from '../../utils/dataUri'
 
@@ -28,8 +28,9 @@ function EventManager({ event, onViewMap }) {
   // Apollo mutations
   const [createTeamMutation, { loading: createLoading }] = useMutation(CREATE_TEAM)
   const [updateTeamColorMutation, { loading: updateLoading }] = useMutation(UPDATE_TEAM_COLOR)
+  const [deleteTeamMutation, { loading: deleteLoading }] = useMutation(DELETE_TEAM)
 
-  const loading = createLoading || updateLoading
+  const loading = createLoading || updateLoading || deleteLoading
 
   // Sync teams when event changes
   useEffect(() => {
@@ -140,16 +141,30 @@ function EventManager({ event, onViewMap }) {
     setEditColor('')
   }
 
-  const handleDeleteTeam = (teamId) => {
-    const updatedTeams = teams.filter(t => t.id !== teamId)
-    setTeams(updatedTeams)
-    
-    const updatedEvent = { ...event, teams: updatedTeams }
-    localStorage.setItem('currentEvent', JSON.stringify(updatedEvent))
-    localStorage.setItem('currentTeams', JSON.stringify(updatedTeams))
-    
-    if (selectedTeam?.id === teamId) {
-      setSelectedTeam(null)
+  const handleDeleteTeam = async (teamId) => {
+    setError(null)
+
+    try {
+      await deleteTeamMutation({
+        variables: {
+          teamId,
+          eventId: event.id,
+          keycode: event.keycode,
+        },
+      })
+
+      const updatedTeams = teams.filter(t => t.id !== teamId)
+      setTeams(updatedTeams)
+      
+      const updatedEvent = { ...event, teams: updatedTeams }
+      localStorage.setItem('currentEvent', JSON.stringify(updatedEvent))
+      localStorage.setItem('currentTeams', JSON.stringify(updatedTeams))
+      
+      if (selectedTeam?.id === teamId) {
+        setSelectedTeam(null)
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete team')
     }
   }
 
@@ -313,6 +328,7 @@ function EventManager({ event, onViewMap }) {
                             handleDeleteTeam(team.id)
                           }}
                           className="btn-delete"
+                          disabled={loading}
                         >
                           ×
                         </button>

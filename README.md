@@ -1,4 +1,4 @@
-# location_tracker_web
+# Location Tracking (React\Vite web UI)
 
 A lightweight web interface for managing location tracking events and teams. This app integrates with the Flutter mobile app to create events, generate QR codes for team participation, and track team locations in real-time.
 
@@ -72,6 +72,7 @@ This is part of a multi-project setup:
 
 - **Create Teams**
   - Team name and color management via GraphQL
+  - Team deleting from UI (persisted via GraphQL API)
   - QR code generation using react-qrcode-logo
   - QR codes include: team name, event name, API URL, image URL, expiration date, timezone
   - Download QR codes as PNG images
@@ -103,7 +104,6 @@ This is part of a multi-project setup:
 
 - **API + Web** Export event data (verify)
 - **apollo client** GQL Subscriptions for teams & location_updates (/teams & /event/map)
-- **API + Web** Team deleting from UI
 - **Web** Team statistics and analytics
 - **API?** Location sequence verification (scrub of anomalous entries)
 - **API + Web** Timeline animation of verified location sequences

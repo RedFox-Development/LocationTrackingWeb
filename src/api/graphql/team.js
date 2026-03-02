@@ -53,3 +53,15 @@ export const UPDATE_TEAM_COLOR = gql`
     }
   }
 `
+
+export const DELETE_TEAM = gql`
+  mutation DeleteTeam($teamId: Int!, $eventId: Int!, $keycode: String!) {
+    deleteTeam(team_id: $teamId, event_id: $eventId, keycode: $keycode) {
+      id
+      name
+      color
+      event_id
+      expiration_date
+    }
+  }
+`
