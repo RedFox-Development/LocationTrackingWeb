@@ -174,7 +174,6 @@ function EventManager({ event, onViewMap }) {
       teamName: team.name,
       event: event.name,
       apiUrl: event.apiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-      imageUrl: '',
       expirationDate: teamExpiration,
       timezone: timezone
     })
@@ -373,13 +372,13 @@ function EventManager({ event, onViewMap }) {
                 <QRCode
                   id={`qr-${selectedTeam.id}`}
                   value={generateQRData(selectedTeam)}
-                  size={300}
-                  logoImage={event.logo_data || undefined}
-                  logoWidth={60}
-                  logoHeight={60}
+                  size={320}
+                  logoImage={event.logo_data ? getImageDataUri(event.logo_data, event.logo_mime_type) : undefined}
+                  logoWidth={64}
+                  logoHeight={64}
                   removeQrCodeBehindLogo={true}
                   qrStyle="dots"
-                  eyeRadius={5}
+                  eyeRadius={2}
                 />
               </div>
               <button

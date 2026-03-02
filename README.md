@@ -103,7 +103,6 @@ This is part of a multi-project setup:
 ## Roadmap
 
 - **API + Web** Export event data (verify)
-- **apollo client** GQL Subscriptions for teams & location_updates (/teams & /event/map)
 - **Web** Team statistics and analytics
 - **API?** Location sequence verification (scrub of anomalous entries)
 - **API + Web** Timeline animation of verified location sequences
