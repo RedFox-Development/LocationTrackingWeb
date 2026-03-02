@@ -5,9 +5,13 @@ import {
   HttpLink
 } from '@apollo/client'
 
-const API_URL = import.meta.env.VITE_API_URL || process.env.VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || process.env.VITE_API_URL || 'https://location-tracker-api.vercel.app/api'
 
 console.log('[Apollo Client] Using API URL:', API_URL)
+
+if (!API_URL) {
+  console.error('[Apollo Client] ERROR: No API URL configured! Set VITE_API_URL environment variable.')
+}
 
 export const graphqlClient = new ApolloClient({
   link: new HttpLink({
@@ -15,6 +19,7 @@ export const graphqlClient = new ApolloClient({
     credentials: 'include'
   }),
   cache: new InMemoryCache(),
+  connectToDevTools: true,
 })
 
 export default graphqlClient
