@@ -14,8 +14,16 @@ import './UI/style/App.css'
 
 const App = () => {
   const location = useLocation()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [currentEvent, setCurrentEvent] = useState(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    // Initialize from localStorage on mount
+    const eventData = localStorage.getItem('currentEvent')
+    return !!eventData
+  })
+  const [currentEvent, setCurrentEvent] = useState(() => {
+    // Initialize from localStorage on mount
+    const eventData = localStorage.getItem('currentEvent')
+    return eventData ? JSON.parse(eventData) : null
+  })
   const lockSomeFeatures = true;
 
   useEffect(() => {
