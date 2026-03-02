@@ -170,6 +170,10 @@ body {
   font-size: 1rem;
 }
 
+.success-container .button-group {
+  padding-top: 1rem;
+}
+
 .keycode-display {
   background: #f9f9f9;
   padding: 1.5rem;

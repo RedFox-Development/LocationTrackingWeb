@@ -95,7 +95,7 @@ function EventSetup({ onEventCreated }) {
       <div className="event-setup">
         <div className="success-container">
           <h2>Event Created Successfully!</h2>
-          <div className="event-details">
+          <div className="event-created-info">
             <p><strong>Event Name:</strong> {createdEvent.name}</p>
             <p><strong>Event ID:</strong> {createdEvent.id}</p>
             <p><strong>Event Keycode:</strong> <code>{createdEvent.keycode}</code></p>
