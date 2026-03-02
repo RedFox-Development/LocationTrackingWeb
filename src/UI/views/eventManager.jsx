@@ -170,11 +170,19 @@ function EventManager({ event, onViewMap }) {
 
   const generateQRData = (team) => {
     const teamExpiration = team.expiration_date || expirationDate
+    // Convert to Unix timestamp in milliseconds for Android app
+    let expirationTimestamp = null
+    if (teamExpiration) {
+      const date = new Date(teamExpiration)
+      // Set to end of day (23:59:59)
+      date.setHours(23, 59, 59, 999)
+      expirationTimestamp = date.getTime()
+    }
     return JSON.stringify({
       teamName: team.name,
       event: event.name,
       apiUrl: event.apiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-      expirationDate: teamExpiration,
+      expirationDate: expirationTimestamp,
       timezone: timezone
     })
   }
