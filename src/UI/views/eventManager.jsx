@@ -5,7 +5,7 @@ import { CREATE_TEAM, UPDATE_TEAM_COLOR, DELETE_TEAM } from '../../api/graphql/t
 import { getRandomColor } from '../../utils/colorPalette'
 import { getImageDataUri } from '../../utils/dataUri'
 
-function EventManager({ event, onViewMap }) {
+function EventManager({ event, onViewMap, onTeamsChanged }) {
   const [teams, setTeams] = useState(event?.teams || [])
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamColor, setNewTeamColor] = useState(() => getRandomColor())
@@ -70,6 +70,11 @@ function EventManager({ event, onViewMap }) {
       oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
       setNewTeamExpiration(oneMonthFromNow.toISOString().split('T')[0])
       setSelectedTeam(newTeam)
+      
+      // Notify parent to reload data
+      if (onTeamsChanged) {
+        onTeamsChanged()
+      }
     } catch (err) {
       setError(err.message || 'Failed to create team')
     }
@@ -116,6 +121,12 @@ function EventManager({ event, onViewMap }) {
       }
       
       setEditingTeamId(null)
+      setEditColor('')
+      
+      // Notify parent to reload data
+      if (onTeamsChanged) {
+        onTeamsChanged()
+      }
     } catch (err) {
       setError(err.message || 'Failed to update team color')
     }
@@ -162,6 +173,11 @@ function EventManager({ event, onViewMap }) {
       
       if (selectedTeam?.id === teamId) {
         setSelectedTeam(null)
+      }
+      
+      // Notify parent to reload data
+      if (onTeamsChanged) {
+        onTeamsChanged()
       }
     } catch (err) {
       setError(err.message || 'Failed to delete team')
