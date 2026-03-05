@@ -170,7 +170,7 @@ function EventSetup({ onEventCreated }) {
               <input
                 id="event-image"
                 type="file"
-                accept="image/*"
+                accept="image/gif,image/png,image/jpeg,image/webp,image/*"
                 onChange={handleImageUpload}
                 disabled={loading}
                 style={{ display: 'none' }}
@@ -188,7 +188,7 @@ function EventSetup({ onEventCreated }) {
               <input
                 id="org-logo"
                 type="file"
-                accept="image/*"
+                accept="image/gif,image/png,image/jpeg,image/webp,image/*"
                 onChange={handleLogoUpload}
                 disabled={loading}
                 style={{ display: 'none' }}

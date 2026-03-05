@@ -55,37 +55,41 @@ export function toDataUri(base64Data, mimeType) {
  * @returns {Promise<string>} Data URI string
  */
 export async function fetchImageAsDataUri(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    
-    // Enable cross-origin if possible
-    img.crossOrigin = 'anonymous';
-    
-    img.onload = () => {
-      try {
-        // Create canvas and draw image
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        
-        // Convert to data URI (defaults to PNG)
-        const dataUri = canvas.toDataURL('image/png');
-        resolve(dataUri);
-      } catch (error) {
-        reject(new Error(`Failed to convert image to base64: ${error.message}`));
-      }
-    };
-    
-    img.onerror = () => {
-      reject(new Error('Failed to load image. The URL may be invalid or the server does not allow cross-origin requests. Try uploading the image file directly instead.'));
-    };
-    
-    // Start loading the image
-    img.src = url;
-  });
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    if (!blob.type || !blob.type.startsWith('image/')) {
+      throw new Error('URL does not point to a valid image.');
+    }
+
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read image data.'));
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Failed to convert image to base64.'));
+      };
+
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to load image. The URL may be invalid or the server does not allow cross-origin requests. ${error.message}`,
+    );
+  }
 }
 
 // Helper function to convert base64 + mime type to data URI

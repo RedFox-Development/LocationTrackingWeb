@@ -273,7 +273,7 @@ const EventPage = (props) => {
             <input
               id="event-image-upload"
               type="file"
-              accept="image/*"
+              accept="image/gif,image/png,image/jpeg,image/webp,image/*"
               onChange={handleImageUpload}
               disabled={loading}
               style={{ display: 'none' }}
@@ -292,7 +292,7 @@ const EventPage = (props) => {
             <input
               id="org-logo-upload"
               type="file"
-              accept="image/*"
+              accept="image/gif,image/png,image/jpeg,image/webp,image/*"
               onChange={handleLogoUpload}
               disabled={loading}
               style={{ display: 'none' }}
