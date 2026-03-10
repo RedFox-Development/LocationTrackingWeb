@@ -76,7 +76,7 @@ function MapView({ event, teams }) {
   const geofenceRef = useRef(null)
 
   // Apollo lazy queries for team locations
-  const [getUpdates] = useLazyQuery(GET_UPDATES)
+  const [getUpdates] = useLazyQuery(GET_UPDATES, { fetchPolicy: 'network-only' })
 
   const resetMapView = () => {
     const activeGeofence = geofenceRef.current
