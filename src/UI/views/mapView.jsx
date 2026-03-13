@@ -143,16 +143,22 @@ function MapView({ event, teams }) {
           (count, waypointId) => count + (visitMap[waypointId] ? 1 : 0),
           0
         )
+        const totalVisited = waypoints.reduce(
+          (count, waypoint) => count + (visitMap[waypoint.id] ? 1 : 0),
+          0
+        )
 
         return {
           team,
           visitMap,
           requiredVisited,
           requiredTotal: requiredWaypointIds.length,
+          totalVisited,
+          totalWaypoints: waypoints.length,
         }
       })
       .sort((a, b) => b.requiredVisited - a.requiredVisited)
-  }, [teams, waypointVisitMapByTeam, requiredWaypointIds])
+  }, [teams, waypointVisitMapByTeam, requiredWaypointIds, waypoints])
 
   const resetMapView = () => {
     const activeGeofence = geofenceRef.current
@@ -518,11 +524,12 @@ function MapView({ event, teams }) {
                       {waypoint.is_required && <span className="waypoint-required-tag">R</span>}
                     </th>
                   ))}
-                  <th>Required Score</th>
+                  <th>Required</th>
+                  <th>Total</th>
                 </tr>
               </thead>
               <tbody>
-                {teamScoreRows.map(({ team, visitMap, requiredVisited, requiredTotal }) => (
+                {teamScoreRows.map(({ team, visitMap, requiredVisited, requiredTotal, totalVisited, totalWaypoints }) => (
                   <tr key={`score-row-${team.id}`}>
                     <td style={{ textAlign: 'left', fontWeight: 600 }}>{team.name}</td>
                     {waypoints.map((waypoint) => {
@@ -540,11 +547,14 @@ function MapView({ event, teams }) {
                     <td>
                       {requiredVisited}/{requiredTotal}
                     </td>
+                    <td>
+                      {totalVisited}/{totalWaypoints}
+                    </td>
                   </tr>
                 ))}
                 {teamScoreRows.length === 0 && (
                   <tr>
-                    <td colSpan={waypoints.length + 2}>
+                    <td colSpan={waypoints.length + 3}>
                       <span className="empty-state">No teams available</span>
                     </td>
                   </tr>
