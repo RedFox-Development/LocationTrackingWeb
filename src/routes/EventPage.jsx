@@ -7,6 +7,7 @@ import { exportEventAsZip } from '../utils/exportData'
 import { getImageDataUri } from '../utils/dataUri'
 import { EventHeader } from '../components/EventHeader'
 import GeofenceEditor from '../components/GeofenceEditor'
+import WaypointEditor from '../components/WaypointEditor'
 
 const EventPage = (props) => {
   const navigate = useNavigate()
@@ -305,6 +306,7 @@ const EventPage = (props) => {
         </div>
 
         <GeofenceEditor event={event} />
+        <WaypointEditor event={event} />
 
         {props.lockSomeFeatures && <>
           <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Export Event Data</h4>

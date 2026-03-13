@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef } from 'react'
-import { useLazyQuery } from '@apollo/client/react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useLazyQuery, useQuery } from '@apollo/client/react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon } from 'react-leaflet'
 import L from 'leaflet'
 import { GET_UPDATES } from '../../api/graphql/team'
+import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
 import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
 import 'leaflet/dist/leaflet.css'
 import { EventHeader } from '../../components/EventHeader'
 
-// Custom icon colors for team markers
 const createTeamIcon = (color, isHistoryDot = false) => {
   if (isHistoryDot) {
-    // Small dot for history locations (1/3 size)
     return L.icon({
       iconUrl: `data:image/svg+xml;base64,${btoa(`
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11">
@@ -22,8 +21,7 @@ const createTeamIcon = (color, isHistoryDot = false) => {
       popupAnchor: [0, -5.5],
     })
   }
-  
-  // Full-size marker for latest location
+
   return L.icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
@@ -34,6 +32,24 @@ const createTeamIcon = (color, isHistoryDot = false) => {
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
+  })
+}
+
+const createWaypointIcon = (isRequired, isVisited) => {
+  const fillColor = isVisited ? '#16a34a' : isRequired ? '#dc2626' : '#9ca3af'
+  const strokeColor = isRequired ? '#7f1d1d' : '#4b5563'
+  const innerColor = isRequired ? '#fff' : isVisited ? '#14532d' : '#374151'
+
+  return L.icon({
+    iconUrl: `data:image/svg+xml;base64,${btoa(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 4.61 5.07 10.83 6.02 11.96a1.26 1.26 0 0 0 1.96 0C13.93 19.83 19 13.61 19 9c0-3.87-3.13-7-7-7z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.2"/>
+        <circle cx="12" cy="9" r="3" fill="${innerColor}"/>
+      </svg>
+    `)}`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 23],
+    popupAnchor: [0, -21],
   })
 }
 
@@ -71,19 +87,79 @@ function MapView({ event, teams }) {
   const [mapZoom] = useState(5)
   const [geofence, setGeofence] = useState(null)
   const [geofenceBreaches, setGeofenceBreaches] = useState({})
+  const [showWaypointScoring, setShowWaypointScoring] = useState(true)
+  const [waypointVisits, setWaypointVisits] = useState([])
+
   const mapRef = useRef(null)
   const intervalRef = useRef(null)
   const geofenceRef = useRef(null)
 
-  // Apollo lazy queries for team locations
   const [getUpdates] = useLazyQuery(GET_UPDATES, { fetchPolicy: 'network-only' })
+  const [getWaypointVisits] = useLazyQuery(GET_WAYPOINT_VISITS, { fetchPolicy: 'network-only' })
+
+  const {
+    data: waypointData,
+    refetch: refetchWaypoints,
+  } = useQuery(GET_WAYPOINTS, {
+    variables: { eventId: event.id },
+    fetchPolicy: 'network-only',
+    pollInterval: 30000,
+    skip: !event?.id,
+  })
+
+  const waypoints = useMemo(() => waypointData?.waypoints || [], [waypointData])
+
+  const waypointVisitMapByTeam = useMemo(() => {
+    const map = {}
+    waypointVisits.forEach((visit) => {
+      if (!map[visit.team_id]) {
+        map[visit.team_id] = {}
+      }
+      map[visit.team_id][visit.waypoint_id] = visit.visited_at
+    })
+    return map
+  }, [waypointVisits])
+
+  const waypointVisitCounts = useMemo(() => {
+    const counts = {}
+    waypointVisits.forEach((visit) => {
+      counts[visit.waypoint_id] = (counts[visit.waypoint_id] || 0) + 1
+    })
+    return counts
+  }, [waypointVisits])
+
+  const requiredWaypointIds = useMemo(
+    () => waypoints.filter((waypoint) => waypoint.is_required).map((waypoint) => waypoint.id),
+    [waypoints]
+  )
+
+  const teamScoreRows = useMemo(() => {
+    if (!teams?.length) return []
+
+    return teams
+      .map((team) => {
+        const visitMap = waypointVisitMapByTeam[team.id] || {}
+        const requiredVisited = requiredWaypointIds.reduce(
+          (count, waypointId) => count + (visitMap[waypointId] ? 1 : 0),
+          0
+        )
+
+        return {
+          team,
+          visitMap,
+          requiredVisited,
+          requiredTotal: requiredWaypointIds.length,
+        }
+      })
+      .sort((a, b) => b.requiredVisited - a.requiredVisited)
+  }, [teams, waypointVisitMapByTeam, requiredWaypointIds])
 
   const resetMapView = () => {
     const activeGeofence = geofenceRef.current
     const hasGeofence = activeGeofence && activeGeofence.length >= 3
-    const allLatLons = Object.values(teamLocations).map(loc => ({
+    const allLatLons = Object.values(teamLocations).map((loc) => ({
       lat: loc.latest.lat,
-      lon: loc.latest.lon
+      lon: loc.latest.lon,
     }))
 
     let activeBounds = null
@@ -101,12 +177,12 @@ function MapView({ event, teams }) {
 
       const paddedBounds = [
         [activeBounds.minLat - latPadding, activeBounds.minLon - lonPadding],
-        [activeBounds.maxLat + latPadding, activeBounds.maxLon + lonPadding]
+        [activeBounds.maxLat + latPadding, activeBounds.maxLon + lonPadding],
       ]
 
       const targetCenter = [
         (activeBounds.minLat + activeBounds.maxLat) / 2,
-        (activeBounds.minLon + activeBounds.maxLon) / 2
+        (activeBounds.minLon + activeBounds.maxLon) / 2,
       ]
 
       setMapCenter(targetCenter)
@@ -114,6 +190,17 @@ function MapView({ event, teams }) {
       const leafletBounds = L.latLngBounds(paddedBounds)
       const targetZoom = mapRef.current.getBoundsZoom(leafletBounds, false, [50, 50])
       mapRef.current.setView(targetCenter, targetZoom)
+    }
+  }
+
+  const fetchWaypointVisits = async () => {
+    if (!event?.id) return
+
+    try {
+      const { data } = await getWaypointVisits({ variables: { eventId: event.id } })
+      setWaypointVisits(data?.waypointVisits || [])
+    } catch (error) {
+      console.error('Error fetching waypoint visits:', error)
     }
   }
 
@@ -128,15 +215,15 @@ function MapView({ event, teams }) {
           const { data } = await getUpdates({
             variables: {
               team: team.name,
-              limit: 5000
-            }
+              limit: 5000,
+            },
           })
-          
+
           return {
             teamId: team.id,
             teamName: team.name,
             teamColor: team.color || '#3b82f6',
-            updates: data.updates || []
+            updates: data.updates || [],
           }
         } catch (error) {
           console.error(`Error fetching locations for team ${team.name}:`, error)
@@ -144,45 +231,45 @@ function MapView({ event, teams }) {
             teamId: team.id,
             teamName: team.name,
             teamColor: team.color || '#3b82f6',
-            updates: []
+            updates: [],
           }
         }
       })
 
       const results = await Promise.all(locationsPromises)
-      
+
       const locations = {}
       const breaches = {}
-      
-      results.forEach(result => {
+
+      results.forEach((result) => {
         if (result.updates && result.updates.length > 0) {
           locations[result.teamId] = {
             latest: result.updates[result.updates.length - 1],
             history: result.updates,
             teamName: result.teamName,
-            teamColor: result.teamColor
+            teamColor: result.teamColor,
           }
 
-          // Check geofence breach
           if (activeGeofence && activeGeofence.length >= 3) {
             const latest = result.updates[result.updates.length - 1]
             const isInside = isPointInPolygon(latest.lat, latest.lon, activeGeofence)
-            
+
             if (!isInside) {
               breaches[result.teamId] = {
                 teamName: result.teamName,
                 lat: latest.lat,
                 lon: latest.lon,
-                timestamp: latest.timestamp
+                timestamp: latest.timestamp,
               }
-              console.warn(`[Geofence] Team "${result.teamName}" is OUTSIDE geofence at [${latest.lat}, ${latest.lon}]`)
             }
           }
         }
       })
-      
+
       setTeamLocations(locations)
       setGeofenceBreaches(breaches)
+
+      await fetchWaypointVisits()
     } catch (error) {
       console.error('Error fetching location data:', error)
     }
@@ -191,24 +278,23 @@ function MapView({ event, teams }) {
   useEffect(() => {
     if (!event || !teams) return
 
-    setSelectedTeams(teams.map(t => t.id))
-    
-    // Load geofence from event object (API) first, then fall back to localStorage
+    setSelectedTeams(teams.map((team) => team.id))
+
     let loadedGeofence = null
     if (event?.geofence_data) {
       try {
         loadedGeofence = JSON.parse(event.geofence_data)
-      } catch (e) {
-        console.warn('Failed to parse geofence_data from event:', e)
+      } catch (error) {
+        console.warn('Failed to parse geofence_data from event:', error)
         loadedGeofence = getGeofence(event.id)
       }
     } else {
       loadedGeofence = getGeofence(event.id)
     }
+
     setGeofence(loadedGeofence)
     geofenceRef.current = loadedGeofence
-    
-    // Load location data and reset map view immediately
+
     fetchLocationData().then(() => {
       resetMapView()
     })
@@ -226,36 +312,35 @@ function MapView({ event, teams }) {
   }, [event, autoRefresh, refreshInterval])
 
   const toggleTeamVisibility = (teamId) => {
-    setSelectedTeams(prev =>
-      prev.includes(teamId)
-        ? prev.filter(id => id !== teamId)
-        : [...prev, teamId]
+    setSelectedTeams((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
     )
+  }
+
+  const refreshAll = async () => {
+    await Promise.all([fetchLocationData(), refetchWaypoints()])
   }
 
   const renderMap = () => {
     return (
-      <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
-        style={{ height: '100%', width: '100%' }}
-        ref={mapRef}
-      >
+      <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }} ref={mapRef}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          zIndex: 1000,
-          backgroundColor: 'white',
-          padding: '0.5rem',
-          borderRadius: '0.25rem',
-          boxShadow: '0 1px 5px rgba(0,0,0,0.2)'
-        }}>
+
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+            backgroundColor: 'white',
+            padding: '0.5rem',
+            borderRadius: '0.25rem',
+            boxShadow: '0 1px 5px rgba(0,0,0,0.2)',
+          }}
+        >
           <button
             onClick={resetMapView}
             style={{
@@ -266,23 +351,15 @@ function MapView({ event, teams }) {
               borderRadius: '0.25rem',
               cursor: 'pointer',
               fontSize: '0.875rem',
-              fontWeight: '500'
+              fontWeight: '500',
             }}
           >
-            🎯 Reset View
+            Reset View
           </button>
         </div>
-        
-        {/* Render geofence polygon */}
+
         {geofence && geofence.length >= 3 && (
-          <Polygon
-            positions={geofence}
-            color="#2196f3"
-            weight={3}
-            opacity={0.6}
-            fillColor="#2196f3"
-            fillOpacity={0.1}
-          >
+          <Polygon positions={geofence} color="#2196f3" weight={3} opacity={0.6} fillColor="#2196f3" fillOpacity={0.1}>
             <Popup>
               <div className="geofence-popup">
                 <strong>Event Geofence</strong>
@@ -291,39 +368,59 @@ function MapView({ event, teams }) {
             </Popup>
           </Polygon>
         )}
-        
-        {/* Render team locations and history trails */}
+
+        {waypoints.map((waypoint) => {
+          const visitedTeams = waypointVisitCounts[waypoint.id] || 0
+          const isVisitedByAny = visitedTeams > 0
+
+          return (
+            <Marker
+              key={`waypoint-${waypoint.id}`}
+              position={[waypoint.lat, waypoint.lon]}
+              icon={createWaypointIcon(Boolean(waypoint.is_required), isVisitedByAny)}
+            >
+              <Popup>
+                <div>
+                  <strong>{waypoint.name}</strong>
+                  <p>{waypoint.is_required ? 'Required waypoint' : 'Optional waypoint'}</p>
+                  <p>
+                    Visits: {visitedTeams}/{teams.length}
+                  </p>
+                </div>
+              </Popup>
+            </Marker>
+          )
+        })}
+
         {Object.entries(teamLocations).map(([teamId, locationData]) => {
-          if (!selectedTeams.includes(parseInt(teamId))) return null
-          
+          if (!selectedTeams.includes(parseInt(teamId, 10))) return null
+
           const { latest, history, teamName, teamColor } = locationData
           const hasBreached = geofenceBreaches[teamId]
-          
+
           return (
             <div key={teamId}>
-              {/* History trail polyline */}
               {showHistory && history && history.length > 1 && (
                 <Polyline
-                  positions={history.map(loc => [loc.lat, loc.lon])}
+                  positions={history.map((loc) => [loc.lat, loc.lon])}
                   color={hasBreached ? '#ff6b6b' : teamColor}
                   weight={2}
                   opacity={0.5}
                   dashArray="5, 5"
                 />
               )}
-              
-              {/* History location dots (past positions) */}
-              {showHistory && history && history.length > 1 && (
-                history.slice(0, -1).map((loc, idx) => (
+
+              {showHistory &&
+                history &&
+                history.length > 1 &&
+                history.slice(0, -1).map((loc, index) => (
                   <Marker
-                    key={`history-${teamId}-${idx}`}
+                    key={`history-${teamId}-${index}`}
                     position={[loc.lat, loc.lon]}
                     icon={createTeamIcon(teamColor, true)}
                   />
-                ))
-              )}
-              
-              {/* Latest position marker */}
+                ))}
+
               {latest && (
                 <Marker
                   position={[latest.lat, latest.lon]}
@@ -334,7 +431,7 @@ function MapView({ event, teams }) {
                       <strong>{teamName}</strong>
                       {hasBreached && (
                         <p style={{ color: '#ff6b6b', fontWeight: 'bold' }}>
-                          ⚠️ OUTSIDE GEOFENCE
+                          OUTSIDE GEOFENCE
                         </p>
                       )}
                       <p>
@@ -361,28 +458,29 @@ function MapView({ event, teams }) {
     return <div className="map-view">No event selected</div>
   }
 
-  // Count active teams with locations
   const teamsWithLocations = Object.keys(teamLocations).length
-  const visibleTeams = selectedTeams.filter(id => teamLocations[id])
+  const visibleTeams = selectedTeams.filter((id) => teamLocations[id])
 
   return (
     <div className="map-view">
       <EventHeader event={event} />
 
-      {/* Geofence Breach Alerts */}
       {Object.keys(geofenceBreaches).length > 0 && geofence && (
-        <div className="geofence-alerts" style={{
-          backgroundColor: '#fff3cd',
-          borderLeft: '4px solid #ff6b6b',
-          padding: '1rem',
-          margin: '1rem',
-          borderRadius: '0.25rem'
-        }}>
-          <strong>⚠️ Geofence Breaches Detected:</strong>
+        <div
+          className="geofence-alerts"
+          style={{
+            backgroundColor: '#fff3cd',
+            borderLeft: '4px solid #ff6b6b',
+            padding: '1rem',
+            margin: '1rem',
+            borderRadius: '0.25rem',
+          }}
+        >
+          <strong>Geofence Breaches Detected:</strong>
           <ul style={{ margin: '0.5rem 0 0 1.5rem' }}>
-            {Object.values(geofenceBreaches).map((breach, idx) => (
-              <li key={idx}>
-                <strong>{breach.teamName}</strong> at [{breach.lat.toFixed(4)}, {breach.lon.toFixed(4)}] 
+            {Object.values(geofenceBreaches).map((breach, index) => (
+              <li key={index}>
+                <strong>{breach.teamName}</strong> at [{breach.lat.toFixed(4)}, {breach.lon.toFixed(4)}]
                 <br />
                 <small>Last seen: {formatDateTime(breach.timestamp)}</small>
               </li>
@@ -391,21 +489,80 @@ function MapView({ event, teams }) {
         </div>
       )}
 
+      <div className="waypoint-score-panel">
+        <div className="waypoint-score-header">
+          <div>
+            <strong>Waypoint Scores</strong>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Visit rule: 4 consecutive updates within 15m
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowWaypointScoring((value) => !value)}
+          >
+            {showWaypointScoring ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        {showWaypointScoring && (
+          <div className="waypoint-score-table-wrap">
+            <table className="waypoint-score-table">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  {waypoints.map((waypoint) => (
+                    <th key={`head-${waypoint.id}`}>
+                      {waypoint.name}
+                      {waypoint.is_required && <span className="waypoint-required-tag">R</span>}
+                    </th>
+                  ))}
+                  <th>Required Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamScoreRows.map(({ team, visitMap, requiredVisited, requiredTotal }) => (
+                  <tr key={`score-row-${team.id}`}>
+                    <td style={{ textAlign: 'left', fontWeight: 600 }}>{team.name}</td>
+                    {waypoints.map((waypoint) => {
+                      const visitedAt = visitMap[waypoint.id]
+                      return (
+                        <td key={`score-${team.id}-${waypoint.id}`} title={visitedAt ? formatDateTime(visitedAt) : 'Not visited'}>
+                          {visitedAt ? (
+                            <span className="waypoint-score-hit">✓</span>
+                          ) : (
+                            <span className="waypoint-score-miss">-</span>
+                          )}
+                        </td>
+                      )
+                    })}
+                    <td>
+                      {requiredVisited}/{requiredTotal}
+                    </td>
+                  </tr>
+                ))}
+                {teamScoreRows.length === 0 && (
+                  <tr>
+                    <td colSpan={waypoints.length + 2}>
+                      <span className="empty-state">No teams available</span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="map-controls">
         <div className="control-group">
           <label>
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
+            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
             Auto-refresh
           </label>
           {autoRefresh && (
-            <select
-              value={refreshInterval}
-              onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            >
+            <select value={refreshInterval} onChange={(e) => setRefreshInterval(Number(e.target.value))}>
               <option value={1000}>1 second</option>
               <option value={5000}>5 seconds</option>
               <option value={10000}>10 seconds</option>
@@ -417,11 +574,7 @@ function MapView({ event, teams }) {
 
         <div className="control-group">
           <label>
-            <input
-              type="checkbox"
-              checked={showHistory}
-              onChange={(e) => setShowHistory(e.target.checked)}
-            />
+            <input type="checkbox" checked={showHistory} onChange={(e) => setShowHistory(e.target.checked)} />
             Show history trail
           </label>
         </div>
@@ -429,29 +582,31 @@ function MapView({ event, teams }) {
         <div className="control-group">
           {geofence && geofence.length >= 3 ? (
             <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              <strong>📍 Geofence:</strong> Active ({geofence.length} points)
+              <strong>Geofence:</strong> Active ({geofence.length} points)
             </div>
           ) : (
             <div style={{ fontSize: '0.9rem', color: 'var(--text-tertiary)' }}>
-              <strong>📍 Geofence:</strong> Not set
+              <strong>Geofence:</strong> Not set
             </div>
           )}
         </div>
 
-        <button onClick={fetchLocationData} className="btn-primary">
+        <button onClick={refreshAll} className="btn-primary">
           Refresh Now
         </button>
       </div>
 
       <div className="map-layout">
         <div className="teams-sidebar">
-          <h3>Teams ({visibleTeams.length}/{teamsWithLocations})</h3>
+          <h3>
+            Teams ({visibleTeams.length}/{teamsWithLocations})
+          </h3>
           <div className="team-filters">
             {teams && teams.length > 0 ? (
-              teams.map(team => {
+              teams.map((team) => {
                 const isVisible = selectedTeams.includes(team.id)
                 const location = teamLocations[team.id]
-                
+
                 return (
                   <div key={team.id} className={`team-filter ${isVisible ? 'active' : ''}`}>
                     <label>
@@ -465,12 +620,8 @@ function MapView({ event, teams }) {
                     </label>
                     {location && location.latest && (
                       <div className="team-status">
-                        <small>
-                          Last seen: {formatTimestamp(location.latest.timestamp)}
-                        </small>
-                        <small>
-                          Positions: {location.history?.length || 0}
-                        </small>
+                        <small>Last seen: {formatTimestamp(location.latest.timestamp)}</small>
+                        <small>Positions: {location.history?.length || 0}</small>
                       </div>
                     )}
                     {!location && (
@@ -487,9 +638,7 @@ function MapView({ event, teams }) {
           </div>
         </div>
 
-        <div className="map-container">
-          {renderMap()}
-        </div>
+        <div className="map-container">{renderMap()}</div>
       </div>
     </div>
   )
