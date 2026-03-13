@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { graphqlClient } from '../api/graphql/graphqlClient'
 import { EXPORT_EVENT_DATA } from '../api/graphql/event'
-import { parseDataUri } from './dataUri'
+import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 
 /**
  * Formats a date for filename use (YYYY-MM-DD)
@@ -18,6 +18,15 @@ const base64ToBytes = (base64) => {
   return bytes
 }
 
+const getBinaryBase64 = (rawValue) => {
+  if (!rawValue || typeof rawValue !== 'string') return null
+  if (rawValue.startsWith('data:')) {
+    const parts = rawValue.split(',')
+    return parts.length === 2 ? parts[1] : null
+  }
+  return rawValue
+}
+
 /**
  * Converts location updates to GeoJSON format
  */
@@ -28,14 +37,61 @@ const locationsToGeoJSON = (locations, teamName) => {
       type: 'Feature',
       geometry: {
         type: 'Point',
-        coordinates: [loc.longitude, loc.latitude]
+        coordinates: [loc.lon, loc.lat]
       },
       properties: {
         team: teamName,
         timestamp: loc.timestamp,
-        accuracy: loc.accuracy
       }
     }))
+  }
+}
+
+const geofenceToGeoJSON = (geofence) => {
+  if (!Array.isArray(geofence) || geofence.length < 3) {
+    return null
+  }
+
+  const ring = geofence.map(([lat, lon]) => [lon, lat])
+  const [firstLon, firstLat] = ring[0]
+  const [lastLon, lastLat] = ring[ring.length - 1]
+  if (firstLon !== lastLon || firstLat !== lastLat) {
+    ring.push([firstLon, firstLat])
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [ring],
+        },
+        properties: {
+          name: 'Event Geofence',
+        },
+      },
+    ],
+  }
+}
+
+const waypointsToGeoJSON = (waypoints) => {
+  return {
+    type: 'FeatureCollection',
+    features: (waypoints || []).map((waypoint) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [waypoint.lon, waypoint.lat],
+      },
+      properties: {
+        id: waypoint.id,
+        name: waypoint.name,
+        isRequired: Boolean(waypoint.is_required),
+        createdAt: waypoint.created_at,
+      },
+    })),
   }
 }
 
@@ -61,6 +117,19 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
   })
 
   const exportData = data.exportEventData
+
+  let waypoints = []
+  try {
+    const { data: waypointData } = await graphqlClient.query({
+      query: GET_WAYPOINTS,
+      variables: { eventId },
+      fetchPolicy: 'no-cache',
+    })
+    waypoints = waypointData?.waypoints || []
+  } catch (error) {
+    console.warn('[exportData] Failed to load waypoints for export:', error)
+  }
+
   const zip = new JSZip()
 
   // Add metadata.json
@@ -69,7 +138,15 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
       id: exportData.event.id,
       name: exportData.event.name,
       organizationName: exportData.event.organization_name,
-      expirationDate: exportData.event.expiration_date
+      expirationDate: exportData.event.expiration_date,
+      geofencePointCount: (() => {
+        try {
+          const parsed = JSON.parse(exportData.event.geofence_data || 'null')
+          return Array.isArray(parsed) ? parsed.length : 0
+        } catch {
+          return 0
+        }
+      })(),
     },
     exportDate: new Date().toISOString(),
     dateRange: {
@@ -77,15 +154,27 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
       end: endDate ? endDate.toISOString() : 'all'
     },
     teamCount: exportData.teams.length,
+    waypointCount: waypoints.length,
     totalLocations: exportData.teams.reduce((sum, team) => sum + (team.locations ? team.locations.length : 0), 0)
   }
   zip.file('metadata.json', JSON.stringify(metadata, null, 2))
 
+  const basicEventInfo = {
+    id: exportData.event.id,
+    name: exportData.event.name,
+    organization_name: exportData.event.organization_name,
+    expiration_date: exportData.event.expiration_date,
+    geofence_data: exportData.event.geofence_data,
+    startDate: exportData.startDate,
+    endDate: exportData.endDate,
+  }
+  zip.file('event.json', JSON.stringify(basicEventInfo, null, 2))
+
   // Add event image if available
   if (exportData.event.image_data && exportData.event.image_mime_type) {
-    const parsed = parseDataUri(exportData.event.image_data)
-    if (parsed) {
-      const imageBytes = base64ToBytes(parsed.base64Data)
+    const imageBase64 = getBinaryBase64(exportData.event.image_data)
+    if (imageBase64) {
+      const imageBytes = base64ToBytes(imageBase64)
       const extension = exportData.event.image_mime_type.split('/')[1] || 'jpg'
       zip.file(`event-image.${extension}`, imageBytes, { binary: true })
     }
@@ -93,12 +182,32 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
 
   // Add event logo if available
   if (exportData.event.logo_data && exportData.event.logo_mime_type) {
-    const parsed = parseDataUri(exportData.event.logo_data)
-    if (parsed) {
-      const logoBytes = base64ToBytes(parsed.base64Data)
+    const logoBase64 = getBinaryBase64(exportData.event.logo_data)
+    if (logoBase64) {
+      const logoBytes = base64ToBytes(logoBase64)
       const extension = exportData.event.logo_mime_type.split('/')[1] || 'png'
       zip.file(`event-logo.${extension}`, logoBytes, { binary: true })
     }
+  }
+
+  let parsedGeofence = null
+  try {
+    parsedGeofence = exportData.event.geofence_data ? JSON.parse(exportData.event.geofence_data) : null
+  } catch {
+    parsedGeofence = null
+  }
+
+  if (parsedGeofence) {
+    zip.file('geofence.json', JSON.stringify(parsedGeofence, null, 2))
+    const geofenceGeoJson = geofenceToGeoJSON(parsedGeofence)
+    if (geofenceGeoJson) {
+      zip.file('geofence.geojson', JSON.stringify(geofenceGeoJson, null, 2))
+    }
+  }
+
+  if (waypoints.length > 0) {
+    zip.file('waypoints.json', JSON.stringify(waypoints, null, 2))
+    zip.file('waypoints.geojson', JSON.stringify(waypointsToGeoJSON(waypoints), null, 2))
   }
 
   // Add teams.json with summary
@@ -122,9 +231,9 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
       teamFolder.file('locations.geojson', JSON.stringify(geojson, null, 2))
       
       // Add CSV file for spreadsheet compatibility
-      const csvHeader = 'latitude,longitude,timestamp,accuracy\n'
+      const csvHeader = 'latitude,longitude,timestamp\n'
       const csvRows = team.locations.map(loc => 
-        `${loc.latitude},${loc.longitude},${loc.timestamp},${loc.accuracy}`
+        `${loc.lat},${loc.lon},${loc.timestamp}`
       ).join('\n')
       teamFolder.file('locations.csv', csvHeader + csvRows)
     }

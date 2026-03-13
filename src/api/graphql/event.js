@@ -156,6 +156,8 @@ export const EXPORT_EVENT_DATA = gql`
         id
         name
         organization_name
+        expiration_date
+        geofence_data
         image_data
         image_mime_type
         logo_data
