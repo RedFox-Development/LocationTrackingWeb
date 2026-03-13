@@ -24,7 +24,7 @@ const App = () => {
     const eventData = localStorage.getItem('currentEvent')
     return eventData ? JSON.parse(eventData) : null
   })
-  const lockSomeFeatures = true;
+  const lockSomeFeatures = false;
 
   useEffect(() => {
     // Update state when pathname changes (e.g., after login/logout)
@@ -109,7 +109,7 @@ const App = () => {
             path="/event" 
             element={
               <ProtectedRoute>
-                <EventPage props={lockSomeFeatures} />
+                <EventPage lockSomeFeatures={lockSomeFeatures} />
               </ProtectedRoute>
             } 
           />

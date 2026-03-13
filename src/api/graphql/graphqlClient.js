@@ -4,8 +4,7 @@ import {
   InMemoryCache,
   HttpLink
 } from '@apollo/client'
-
-const API_URL = import.meta.env.VITE_API_URL || process.env.VITE_API_URL || 'https://location-tracker-api.vercel.app/api'
+const API_URL = import.meta.env.VITE_API_URL
 
 console.log('[Apollo Client] Using API URL:', API_URL)
 

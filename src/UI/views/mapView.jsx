@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
-import { useLazyQuery, useQuery } from '@apollo/client/react'
+import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
+import { useApolloClient, useQuery } from '@apollo/client/react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon } from 'react-leaflet'
 import L from 'leaflet'
 import { GET_UPDATES } from '../../api/graphql/team'
@@ -55,6 +55,12 @@ const createWaypointIcon = (isRequired, isVisited) => {
 
 const normalizeTimestamp = (value) => {
   if (!value) return value
+  if (typeof value === 'number') {
+    return new Date(value).toISOString()
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    return new Date(Number(value)).toISOString()
+  }
   let normalized = value
   normalized = normalized.replace(/\.(\d{3})\d+Z$/, '.$1Z')
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(normalized)) {
@@ -78,6 +84,7 @@ const formatDateTime = (value) => {
 }
 
 function MapView({ event, teams }) {
+  const apolloClient = useApolloClient()
   const [teamLocations, setTeamLocations] = useState({})
   const [selectedTeams, setSelectedTeams] = useState([])
   const [showHistory, setShowHistory] = useState(true)
@@ -93,9 +100,6 @@ function MapView({ event, teams }) {
   const mapRef = useRef(null)
   const intervalRef = useRef(null)
   const geofenceRef = useRef(null)
-
-  const [getUpdates] = useLazyQuery(GET_UPDATES, { fetchPolicy: 'network-only' })
-  const [getWaypointVisits] = useLazyQuery(GET_WAYPOINT_VISITS, { fetchPolicy: 'network-only' })
 
   const {
     data: waypointData,
@@ -203,7 +207,11 @@ function MapView({ event, teams }) {
     if (!event?.id) return
 
     try {
-      const { data } = await getWaypointVisits({ variables: { eventId: event.id } })
+      const { data } = await apolloClient.query({
+        query: GET_WAYPOINT_VISITS,
+        variables: { eventId: event.id },
+        fetchPolicy: 'network-only',
+      })
       setWaypointVisits(data?.waypointVisits || [])
     } catch (error) {
       console.error('Error fetching waypoint visits:', error)
@@ -218,11 +226,14 @@ function MapView({ event, teams }) {
     try {
       const locationsPromises = teams.map(async (team) => {
         try {
-          const { data } = await getUpdates({
+          const { data } = await apolloClient.query({
+            query: GET_UPDATES,
             variables: {
+              event: event.name,
               team: team.name,
               limit: 5000,
             },
+            fetchPolicy: 'network-only',
           })
 
           return {
@@ -249,23 +260,29 @@ function MapView({ event, teams }) {
 
       results.forEach((result) => {
         if (result.updates && result.updates.length > 0) {
+          const sortedUpdates = [...result.updates].sort((a, b) => {
+            const timeA = new Date(normalizeTimestamp(a.timestamp)).getTime()
+            const timeB = new Date(normalizeTimestamp(b.timestamp)).getTime()
+            return timeA - timeB
+          })
+          const latestUpdate = sortedUpdates[sortedUpdates.length - 1]
+
           locations[result.teamId] = {
-            latest: result.updates[result.updates.length - 1],
-            history: result.updates,
+            latest: latestUpdate,
+            history: sortedUpdates,
             teamName: result.teamName,
             teamColor: result.teamColor,
           }
 
           if (activeGeofence && activeGeofence.length >= 3) {
-            const latest = result.updates[result.updates.length - 1]
-            const isInside = isPointInPolygon(latest.lat, latest.lon, activeGeofence)
+            const isInside = isPointInPolygon(latestUpdate.lat, latestUpdate.lon, activeGeofence)
 
             if (!isInside) {
               breaches[result.teamId] = {
                 teamName: result.teamName,
-                lat: latest.lat,
-                lon: latest.lon,
-                timestamp: latest.timestamp,
+                lat: latestUpdate.lat,
+                lon: latestUpdate.lon,
+                timestamp: latestUpdate.timestamp,
               }
             }
           }
@@ -315,7 +332,7 @@ function MapView({ event, teams }) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event, autoRefresh, refreshInterval])
+  }, [event, teams, autoRefresh, refreshInterval])
 
   const toggleTeamVisibility = (teamId) => {
     setSelectedTeams((prev) =>
@@ -405,7 +422,7 @@ function MapView({ event, teams }) {
           const hasBreached = geofenceBreaches[teamId]
 
           return (
-            <div key={teamId}>
+            <Fragment key={teamId}>
               {showHistory && history && history.length > 1 && (
                 <Polyline
                   positions={history.map((loc) => [loc.lat, loc.lon])}
@@ -453,7 +470,7 @@ function MapView({ event, teams }) {
                   </Popup>
                 </Marker>
               )}
-            </div>
+            </Fragment>
           )
         })}
       </MapContainer>

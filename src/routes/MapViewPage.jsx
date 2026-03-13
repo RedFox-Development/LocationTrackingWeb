@@ -1,11 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@apollo/client/react'
 import MapView from '../UI/views/mapView'
+import { GET_TEAMS } from '../api/graphql/team'
+import { GET_EVENT } from '../api/graphql/event'
 
 function MapViewPage() {
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
   const [teams, setTeams] = useState([])
+
+  const { data: eventData } = useQuery(GET_EVENT, {
+    variables: { id: event?.id },
+    skip: !event?.id,
+    fetchPolicy: 'network-only',
+    pollInterval: 30000,
+  })
+
+  const { data: teamsData } = useQuery(GET_TEAMS, {
+    variables: { eventId: event?.id },
+    skip: !event?.id,
+    fetchPolicy: 'network-only',
+    pollInterval: 30000,
+  })
 
   useEffect(() => {
     const currentEvent = localStorage.getItem('currentEvent')
@@ -13,10 +30,26 @@ function MapViewPage() {
     if (currentEvent && currentTeams) {
       setEvent(JSON.parse(currentEvent))
       setTeams(JSON.parse(currentTeams))
+    } else if (currentEvent) {
+      setEvent(JSON.parse(currentEvent))
     } else {
       navigate('/login')
     }
   }, [navigate])
+
+  useEffect(() => {
+    if (teamsData?.teams) {
+      setTeams(teamsData.teams)
+      localStorage.setItem('currentTeams', JSON.stringify(teamsData.teams))
+    }
+  }, [teamsData])
+
+  useEffect(() => {
+    if (eventData?.event) {
+      setEvent(eventData.event)
+      localStorage.setItem('currentEvent', JSON.stringify(eventData.event))
+    }
+  }, [eventData])
 
   if (!event || !event.id) {
     return null

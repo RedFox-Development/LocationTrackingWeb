@@ -18,8 +18,8 @@ export const CREATE_TEAM = gql`
 `
 
 export const GET_UPDATES = gql`
-  query GetUpdates($team: String!, $limit: Int) {
-    updates(team: $team, limit: $limit) {
+  query GetUpdates($event: String!, $team: String!, $limit: Int) {
+    updates(event: $event, team: $team, limit: $limit) {
       id
       team
       event

@@ -8,6 +8,7 @@ function LogoutPage() {
     // Clear all stored data
     localStorage.removeItem('currentEvent')
     localStorage.removeItem('currentTeams')
+    localStorage.removeItem('currentWaypoints')
     localStorage.removeItem('currentLocations')
     
     // Redirect to login

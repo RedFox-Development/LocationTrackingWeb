@@ -198,7 +198,7 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
     return JSON.stringify({
       teamName: team.name,
       event: event.name,
-      apiUrl: event.apiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+      apiUrl: event.apiUrl || import.meta.env.VITE_API_URL,
       expirationDate: expirationTimestamp,
       timezone: timezone
     })

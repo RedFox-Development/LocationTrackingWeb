@@ -308,7 +308,7 @@ const EventPage = (props) => {
         <GeofenceEditor event={event} />
         <WaypointEditor event={event} />
 
-        {props.lockSomeFeatures && <>
+        {!props.lockSomeFeatures && <>
           <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Export Event Data</h4>
           <div className="export-section">
             <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>

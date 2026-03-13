@@ -1,74 +1,37 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useLazyQuery } from '@apollo/client/react'
 import { LOGIN } from '../api/graphql/login'
 import { GET_TEAMS } from '../api/graphql/team'
+import { graphqlClient } from '../api/graphql/graphqlClient'
 
 function LoginPage() {
   const navigate = useNavigate()
   const [eventName, setEventName] = useState('')
   const [eventKeycode, setEventKeycode] = useState('')
   const [loginError, setLoginError] = useState('')
-  
-  const [loginQuery, { loading, data, error }] = useLazyQuery(LOGIN, {
-    fetchPolicy: 'network-only',
-  })
-
-  const [getTeams] = useLazyQuery(GET_TEAMS, {
-    fetchPolicy: 'network-only',
-    onCompleted: (teamsData) => {
-      if (teamsData?.teams) {
-        console.log('[LoginPage] Initial teams data fetched:', teamsData.teams)
-        localStorage.setItem('currentTeams', JSON.stringify(teamsData.teams))
-      }
-    }
-  })
-
-  // Watch for data changes and handle navigation
-  useEffect(() => {
-    if (data) {
-      console.log('[LoginPage] useEffect - Data received:', JSON.stringify(data, null, 2))
-      console.log('[LoginPage] useEffect - data.login:', data?.login)
-      console.log('[LoginPage] useEffect - data.login.success:', data?.login?.success)
-      
-      if (data?.login?.success) {
-        console.log('[LoginPage] useEffect - Success is true, storing data...')
-        // Store event data in localStorage
-        localStorage.setItem('currentEvent', JSON.stringify(data.login.event))
-        
-        console.log('[LoginPage] useEffect - Data stored in localStorage')
-        console.log('[LoginPage] useEffect - Fetching teams...')
-        
-        // Fetch teams immediately after login
-        getTeams({ variables: { eventId: data.login.event.id } })
-        
-        console.log('[LoginPage] useEffect - Calling navigate to /event')
-        // Redirect to event page
-        navigate('/event', { replace: true })
-        console.log('[LoginPage] useEffect - Navigate called')
-      } else {
-        console.log('[LoginPage] useEffect - Success is false or missing')
-        setLoginError('Login failed. Please check your event name and keycode.')
-      }
-    }
-  }, [data, navigate, getTeams])
-
-  // Watch for errors
-  useEffect(() => {
-    if (error) {
-      console.error('[LoginPage] useEffect - Error received:', error)
-      setLoginError(error.message || 'Failed to login. Please try again.')
-    }
-  }, [error])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false)
 
   // Redirect if already logged in (check only on mount)
   useEffect(() => {
     const currentEvent = localStorage.getItem('currentEvent')
-    if (currentEvent) {
-      console.log('[LoginPage] Already logged in, redirecting...')
-      navigate('/event')
+    if (!currentEvent) return
+
+    try {
+      const parsedEvent = JSON.parse(currentEvent)
+      if (parsedEvent?.id && parsedEvent?.name && parsedEvent?.keycode) {
+        console.log('[LoginPage] Already logged in, redirecting...')
+        navigate('/event', { replace: true })
+        return
+      }
+    } catch (storageError) {
+      console.warn('[LoginPage] Invalid stored event found, clearing it:', storageError)
     }
-  }, [])
+
+    localStorage.removeItem('currentEvent')
+    localStorage.removeItem('currentTeams')
+    localStorage.removeItem('currentWaypoints')
+  }, [navigate])
 
   const handleLoginEvent = async (e) => {
     e.preventDefault()
@@ -80,16 +43,51 @@ function LoginPage() {
     }
 
     try {
-      const result = await loginQuery({
+      setIsSubmitting(true)
+      const result = await graphqlClient.query({
+        query: LOGIN,
         variables: {
           eventName: eventName.trim(),
-          keycode: eventKeycode.trim()
-        }
+          keycode: eventKeycode.trim(),
+        },
+        fetchPolicy: 'network-only',
       })
+
+      const loginResult = result?.data?.login
       console.log('[LoginPage] Query result:', result)
+
+      if (!loginResult?.success || !loginResult?.event) {
+        setLoginError('Login failed. Please check your event name and keycode.')
+        return
+      }
+
+      const loggedInEvent = loginResult.event
+      localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
+      localStorage.removeItem('currentTeams')
+      localStorage.removeItem('currentWaypoints')
+
+      try {
+        setIsLoadingTeams(true)
+        const teamsResult = await graphqlClient.query({
+          query: GET_TEAMS,
+          variables: { eventId: loggedInEvent.id },
+          fetchPolicy: 'network-only',
+        })
+        const teams = teamsResult?.data?.teams || []
+        localStorage.setItem('currentTeams', JSON.stringify(teams))
+      } catch (teamsError) {
+        console.error('[LoginPage] team preload failed, continuing without cached teams:', teamsError)
+      } finally {
+        setIsLoadingTeams(false)
+      }
+
+      navigate('/event', { replace: true })
     } catch (err) {
       console.error('[LoginPage] Query execution error:', err)
       setLoginError(err.message || 'Failed to execute login query')
+      setIsLoadingTeams(false)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -129,8 +127,8 @@ function LoginPage() {
               placeholder="Enter keycode"
             />
           </div>
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+          <button type="submit" className="btn-primary" disabled={isSubmitting || isLoadingTeams}>
+            {isSubmitting ? 'Logging in...' : isLoadingTeams ? 'Loading teams...' : 'Login'}
           </button>
         </form>
 

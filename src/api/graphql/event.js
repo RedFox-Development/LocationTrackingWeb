@@ -5,6 +5,23 @@
 
 import { gql } from '@apollo/client'
 
+export const GET_EVENT = gql`
+  query GetEvent($id: Int!) {
+    event(id: $id) {
+      id
+      name
+      keycode
+      organization_name
+      expiration_date
+      geofence_data
+      image_data
+      image_mime_type
+      logo_data
+      logo_mime_type
+    }
+  }
+`
+
 export const EVENT_INFO = gql`
   query EventByName($eventName: String!) {
     eventByName(event_name: $eventName) {
