@@ -39,9 +39,7 @@ function ClickCapture({ onPointClick }) {
 
 function WaypointEditor({ event }) {
   const [showEditor, setShowEditor] = useState(false)
-  const [pendingClick, setPendingClick] = useState(null)
-  const [newName, setNewName] = useState('')
-  const [newIsRequired, setNewIsRequired] = useState(false)
+  const [draftWaypoints, setDraftWaypoints] = useState([])
 
   const [editingWaypoint, setEditingWaypoint] = useState(null)
   const [editName, setEditName] = useState('')
@@ -60,39 +58,90 @@ function WaypointEditor({ event }) {
   const isSaving = creating || updating || deleting
 
   const mapCenter = useMemo(() => {
-    if (pendingClick) {
-      return pendingClick
+    if (draftWaypoints.length > 0) {
+      const lastDraft = draftWaypoints[draftWaypoints.length - 1]
+      return [lastDraft.lat, lastDraft.lon]
     }
     if (waypoints.length > 0) {
       return [waypoints[0].lat, waypoints[0].lon]
     }
     return DEFAULT_CENTER
-  }, [pendingClick, waypoints])
+  }, [draftWaypoints, waypoints])
 
-  const resetCreateState = () => {
-    setPendingClick(null)
-    setNewName('')
-    setNewIsRequired(false)
+  const clearDrafts = () => {
+    setDraftWaypoints([])
   }
 
-  const handleSaveNewWaypoint = async () => {
-    if (!pendingClick || !newName.trim()) {
+  const handlePointClick = (point) => {
+    const sequence = waypoints.length + draftWaypoints.length + 1
+    const tempWaypoint = {
+      tempId: `draft-${Date.now()}-${Math.random()}`,
+      lat: point[0],
+      lon: point[1],
+      name: `Waypoint ${sequence}`,
+      is_required: false,
+    }
+    setDraftWaypoints((current) => [...current, tempWaypoint])
+  }
+
+  const handleDraftChange = (tempId, field, value) => {
+    setDraftWaypoints((current) =>
+      current.map((draft) =>
+        draft.tempId === tempId
+          ? {
+              ...draft,
+              [field]: value,
+            }
+          : draft
+      )
+    )
+  }
+
+  const handleRemoveDraft = (tempId) => {
+    setDraftWaypoints((current) => current.filter((draft) => draft.tempId !== tempId))
+  }
+
+  const handleSaveDraftWaypoints = async () => {
+    const validDrafts = draftWaypoints.filter((draft) => draft.name.trim())
+    if (validDrafts.length === 0) {
       return
     }
 
-    await createWaypoint({
-      variables: {
-        eventId: event.id,
-        keycode: event.keycode,
-        name: newName.trim(),
-        lat: pendingClick[0],
-        lon: pendingClick[1],
-        isRequired: newIsRequired,
-      },
-    })
+    await Promise.all(
+      validDrafts.map((draft) =>
+        createWaypoint({
+          variables: {
+            eventId: event.id,
+            keycode: event.keycode,
+            name: draft.name.trim(),
+            lat: draft.lat,
+            lon: draft.lon,
+            isRequired: Boolean(draft.is_required),
+          },
+        })
+      )
+    )
 
     await refetch()
-    resetCreateState()
+    clearDrafts()
+  }
+
+  const handleWaypointDragEnd = async (waypoint, dragEvent) => {
+    const marker = dragEvent?.target
+    if (!marker) {
+      return
+    }
+    const position = marker.getLatLng()
+    await updateWaypoint({
+      variables: {
+        waypointId: waypoint.id,
+        eventId: event.id,
+        keycode: event.keycode,
+        lat: position.lat,
+        lon: position.lng,
+      },
+    })
+    await refetch()
   }
 
   const handleStartEdit = (waypoint) => {
@@ -152,7 +201,7 @@ function WaypointEditor({ event }) {
       )}
 
       <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-        Click the map to place a waypoint and mark it as optional or required.
+        Click multiple points to queue one or more waypoints, then save all at once. Existing waypoints are draggable.
       </p>
 
       <button
@@ -173,61 +222,96 @@ function WaypointEditor({ event }) {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              <ClickCapture onPointClick={setPendingClick} />
+              <ClickCapture onPointClick={handlePointClick} />
 
               {waypoints.map((waypoint) => (
                 <Marker
                   key={waypoint.id}
                   position={[waypoint.lat, waypoint.lon]}
                   icon={createWaypointIcon(Boolean(waypoint.is_required))}
+                  draggable
+                  eventHandlers={{
+                    dragend: (event) => {
+                      handleWaypointDragEnd(waypoint, event)
+                    },
+                  }}
                 >
                   <Popup>
                     <div>
                       <strong>{waypoint.name}</strong>
                       <p>{waypoint.is_required ? 'Required' : 'Optional'}</p>
+                      <p>Drag marker to fine-tune location</p>
                     </div>
                   </Popup>
                 </Marker>
               ))}
 
-              {pendingClick && (
-                <Marker position={pendingClick} icon={createWaypointIcon(newIsRequired)}>
+              {draftWaypoints.map((draft) => (
+                <Marker
+                  key={draft.tempId}
+                  position={[draft.lat, draft.lon]}
+                  icon={createWaypointIcon(Boolean(draft.is_required))}
+                >
                   <Popup>
-                    <strong>New waypoint location</strong>
+                    <strong>{draft.name || 'Draft waypoint'}</strong>
                   </Popup>
                 </Marker>
-              )}
+              ))}
             </MapContainer>
           </div>
 
-          {pendingClick && (
+          {draftWaypoints.length > 0 && (
             <div className="waypoint-form-card">
-              <h5>Add waypoint</h5>
-              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                <label>Name</label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Waypoint name"
-                  disabled={isSaving}
-                />
+              <h5>Pending waypoints ({draftWaypoints.length})</h5>
+              <div className="waypoint-list">
+                {draftWaypoints.map((draft) => (
+                  <div key={draft.tempId} className="waypoint-list-item" style={{ marginBottom: '0.6rem' }}>
+                    <div style={{ width: '100%' }}>
+                      <div className="form-group" style={{ marginBottom: '0.6rem' }}>
+                        <label>Name</label>
+                        <input
+                          type="text"
+                          value={draft.name}
+                          onChange={(e) => handleDraftChange(draft.tempId, 'name', e.target.value)}
+                          placeholder="Waypoint name"
+                          disabled={isSaving}
+                        />
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(draft.is_required)}
+                          onChange={(e) => handleDraftChange(draft.tempId, 'is_required', e.target.checked)}
+                          disabled={isSaving}
+                        />
+                        Required waypoint
+                      </label>
+                      <p style={{ color: 'var(--text-secondary)' }}>
+                        {draft.lat.toFixed(5)}, {draft.lon.toFixed(5)}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => handleRemoveDraft(draft.tempId)}
+                        disabled={isSaving}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <input
-                  type="checkbox"
-                  checked={newIsRequired}
-                  onChange={(e) => setNewIsRequired(e.target.checked)}
-                  disabled={isSaving}
-                />
-                Required waypoint
-              </label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="button" className="btn-primary" onClick={handleSaveNewWaypoint} disabled={isSaving || !newName.trim()}>
-                  Save waypoint
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleSaveDraftWaypoints}
+                  disabled={isSaving || draftWaypoints.every((draft) => !draft.name.trim())}
+                >
+                  Save all pending waypoints
                 </button>
-                <button type="button" className="btn-secondary" onClick={resetCreateState} disabled={isSaving}>
-                  Cancel
+                <button type="button" className="btn-secondary" onClick={clearDrafts} disabled={isSaving}>
+                  Clear pending
                 </button>
               </div>
             </div>

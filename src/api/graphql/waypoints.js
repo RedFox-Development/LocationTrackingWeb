@@ -66,6 +66,8 @@ export const UPDATE_WAYPOINT = gql`
     $keycode: String!
     $name: String
     $isRequired: Boolean
+    $lat: Float
+    $lon: Float
   ) {
     updateWaypoint(
       waypoint_id: $waypointId
@@ -73,6 +75,8 @@ export const UPDATE_WAYPOINT = gql`
       keycode: $keycode
       name: $name
       is_required: $isRequired
+      lat: $lat
+      lon: $lon
     ) {
       id
       event_id
