@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
 import { useApolloClient, useQuery } from '@apollo/client/react'
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
 import { GET_UPDATES } from '../../api/graphql/team'
 import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
@@ -83,9 +83,10 @@ const formatDateTime = (value) => {
   return parsed.toLocaleString()
 }
 
+const MAX_HISTORY_DOTS = 900
+
 function MapView({ event, teams }) {
   const apolloClient = useApolloClient()
-  const [teamLocations, setTeamLocations] = useState({})
   const [selectedTeams, setSelectedTeams] = useState([])
   const [showHistory, setShowHistory] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
@@ -93,13 +94,18 @@ function MapView({ event, teams }) {
   const [mapCenter, setMapCenter] = useState([20, 0])
   const [mapZoom] = useState(5)
   const [geofence, setGeofence] = useState(null)
-  const [geofenceBreaches, setGeofenceBreaches] = useState({})
   const [showWaypointScoring, setShowWaypointScoring] = useState(true)
   const [waypointVisits, setWaypointVisits] = useState([])
+  const [_locationRenderVersion, setLocationRenderVersion] = useState(0)
 
   const mapRef = useRef(null)
   const intervalRef = useRef(null)
   const geofenceRef = useRef(null)
+  const teamLocationsRef = useRef({})
+  const geofenceBreachesRef = useRef({})
+
+  const teamLocations = teamLocationsRef.current
+  const geofenceBreaches = geofenceBreachesRef.current
 
   const {
     data: waypointData,
@@ -164,10 +170,39 @@ function MapView({ event, teams }) {
       .sort((a, b) => b.requiredVisited - a.requiredVisited)
   }, [teams, waypointVisitMapByTeam, requiredWaypointIds, waypoints])
 
+  const historyDots = useMemo(() => {
+    if (!showHistory) return []
+
+    const points = []
+
+    Object.entries(teamLocations).forEach(([teamId, locationData]) => {
+      if (!selectedTeams.includes(parseInt(teamId, 10))) return
+
+      const { history, teamColor } = locationData
+      if (!history || history.length <= 1) return
+
+      history.slice(0, -1).forEach((loc, index) => {
+        points.push({
+          key: `history-${teamId}-${index}`,
+          lat: loc.lat,
+          lon: loc.lon,
+          color: teamColor,
+        })
+      })
+    })
+
+    if (points.length <= MAX_HISTORY_DOTS) {
+      return points
+    }
+
+    const stride = Math.ceil(points.length / MAX_HISTORY_DOTS)
+    return points.filter((_, index) => index % stride === 0)
+  }, [showHistory, teamLocations, selectedTeams])
+
   const resetMapView = () => {
     const activeGeofence = geofenceRef.current
     const hasGeofence = activeGeofence && activeGeofence.length >= 3
-    const allLatLons = Object.values(teamLocations).map((loc) => ({
+    const allLatLons = Object.values(teamLocationsRef.current).map((loc) => ({
       lat: loc.latest.lat,
       lon: loc.latest.lon,
     }))
@@ -231,7 +266,7 @@ function MapView({ event, teams }) {
             variables: {
               event: event.name,
               team: team.name,
-              limit: 240,
+              limit: 2400,
             },
             fetchPolicy: 'network-only',
           })
@@ -289,8 +324,73 @@ function MapView({ event, teams }) {
         }
       })
 
-      setTeamLocations(locations)
-      setGeofenceBreaches(breaches)
+      const hasLocationsChanged = (() => {
+        const previous = teamLocationsRef.current
+        const previousKeys = Object.keys(previous)
+        const nextKeys = Object.keys(locations)
+
+        if (previousKeys.length !== nextKeys.length) return true
+
+        for (const teamId of nextKeys) {
+          const prevEntry = previous[teamId]
+          const nextEntry = locations[teamId]
+          if (!prevEntry || !nextEntry) return true
+
+          const prevLatest = prevEntry.latest
+          const nextLatest = nextEntry.latest
+          if (!prevLatest || !nextLatest) return true
+
+          if (
+            prevEntry.teamName !== nextEntry.teamName ||
+            prevEntry.teamColor !== nextEntry.teamColor ||
+            prevEntry.history?.length !== nextEntry.history?.length ||
+            prevLatest.lat !== nextLatest.lat ||
+            prevLatest.lon !== nextLatest.lon ||
+            normalizeTimestamp(prevLatest.timestamp) !== normalizeTimestamp(nextLatest.timestamp)
+          ) {
+            return true
+          }
+        }
+
+        return false
+      })()
+
+      const hasBreachesChanged = (() => {
+        const previous = geofenceBreachesRef.current
+        const previousKeys = Object.keys(previous)
+        const nextKeys = Object.keys(breaches)
+
+        if (previousKeys.length !== nextKeys.length) return true
+
+        for (const teamId of nextKeys) {
+          const prevBreach = previous[teamId]
+          const nextBreach = breaches[teamId]
+          if (!prevBreach || !nextBreach) return true
+
+          if (
+            prevBreach.teamName !== nextBreach.teamName ||
+            prevBreach.lat !== nextBreach.lat ||
+            prevBreach.lon !== nextBreach.lon ||
+            normalizeTimestamp(prevBreach.timestamp) !== normalizeTimestamp(nextBreach.timestamp)
+          ) {
+            return true
+          }
+        }
+
+        return false
+      })()
+
+      if (hasLocationsChanged) {
+        teamLocationsRef.current = locations
+      }
+
+      if (hasBreachesChanged) {
+        geofenceBreachesRef.current = breaches
+      }
+
+      if (hasLocationsChanged || hasBreachesChanged) {
+        setLocationRenderVersion((version) => version + 1)
+      }
 
       await fetchWaypointVisits()
     } catch (error) {
@@ -346,7 +446,7 @@ function MapView({ event, teams }) {
 
   const renderMap = () => {
     return (
-      <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }} ref={mapRef}>
+      <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }} ref={mapRef} preferCanvas={true}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -433,17 +533,6 @@ function MapView({ event, teams }) {
                 />
               )}
 
-              {showHistory &&
-                history &&
-                history.length > 1 &&
-                history.slice(0, -1).map((loc, index) => (
-                  <Marker
-                    key={`history-${teamId}-${index}`}
-                    position={[loc.lat, loc.lon]}
-                    icon={createTeamIcon(teamColor, true)}
-                  />
-                ))}
-
               {latest && (
                 <Marker
                   position={[latest.lat, latest.lon]}
@@ -473,6 +562,22 @@ function MapView({ event, teams }) {
             </Fragment>
           )
         })}
+
+        {showHistory &&
+          historyDots.map((dot) => (
+            <CircleMarker
+              key={dot.key}
+              center={[dot.lat, dot.lon]}
+              radius={3}
+              pathOptions={{
+                color: dot.color,
+                fillColor: dot.color,
+                fillOpacity: 0.65,
+                opacity: 0.85,
+                weight: 1,
+              }}
+            />
+          ))}
       </MapContainer>
     )
   }
