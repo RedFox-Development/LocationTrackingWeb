@@ -4,7 +4,7 @@
  */
 
 import { memo, useState, useEffect } from 'react'
-import { MapContainer, TileLayer, FeatureGroup } from 'react-leaflet'
+import { MapContainer, TileLayer, FeatureGroup, Polygon, useMap } from 'react-leaflet'
 import { EditControl } from 'react-leaflet-draw'
 import { useMutation } from '@apollo/client/react'
 import { UPDATE_EVENT_GEOFENCE, DELETE_EVENT_GEOFENCE } from '../api/graphql/event'
@@ -95,6 +95,23 @@ function extractPolygonCoordinates(layer) {
   }
 
   return polygon.length >= 3 ? polygon : null
+}
+
+function GeofenceAutoFit({ geofence, active }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!active || !Array.isArray(geofence) || geofence.length < 3) return
+
+    const bounds = geofence.map(([lat, lon]) => [lat, lon])
+    map.fitBounds(bounds, {
+      padding: [24, 24],
+      maxZoom: 17,
+      animate: false,
+    })
+  }, [map, geofence, active])
+
+  return null
 }
 
 function GeofenceEditor({ event, onGeofenceChange }) {
@@ -330,7 +347,7 @@ function GeofenceEditor({ event, onGeofenceChange }) {
           style={{ marginBottom: '1rem' }}
           disabled={apiLoading}
         >
-          {showGeofenceMap ? '✕ Close Geofence Map' : '📍 Draw/Edit Geofence'}
+          {showGeofenceMap ? '✕ Close geofence editor' : '📍 Draw \\ Edit geofence'}
         </button>
 
         {geofence && geofence.length > 0 && (
@@ -340,7 +357,7 @@ function GeofenceEditor({ event, onGeofenceChange }) {
             style={{ marginLeft: '0.5rem', backgroundColor: '#ff6b6b' }}
             disabled={apiLoading}
           >
-            {apiLoading ? '🔄 Deleting...' : '🗑️ Clear Geofence'}
+            {apiLoading ? '🔄 Deleting...' : '🗑️ Clear geofence'}
           </button>
         )}
       </div>
@@ -349,7 +366,6 @@ function GeofenceEditor({ event, onGeofenceChange }) {
         <div 
           className="geofence-map-container"
           style={{
-            height: '400px',
             marginTop: '1rem',
             borderRadius: '0.5rem',
             overflow: 'hidden',
@@ -362,12 +378,20 @@ function GeofenceEditor({ event, onGeofenceChange }) {
             zoom={5}
             style={{ height: '100%', width: '100%' }}
           >
+            <GeofenceAutoFit geofence={geofence} active={showGeofenceMap} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             
             <FeatureGroup>
+              {Array.isArray(geofence) && geofence.length >= 3 && (
+                <Polygon
+                  key={`editable-geofence-${event?.id || 'event'}`}
+                  positions={geofence}
+                  pathOptions={{ color: '#2196f3', weight: 3, fillOpacity: 0.12 }}
+                />
+              )}
               <EditControl
                 position="topright"
                 onCreated={handleGeofenceCreate}

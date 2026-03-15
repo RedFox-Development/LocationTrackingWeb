@@ -100,11 +100,21 @@ This is part of a multi-project setup:
   - Geofence breach alerting
   - Centering the map to the defined geofenced event area, if set
 
+- **Event waypoints**
+  - Adding, modifying and removing of waypoints
+  - Waypoint naming
+  - Waypoints can be set as "required", default is 
+
+- **View-only access mode**
+  - On event creation, management and view-only access codes are generated
+  - View-only access allows to view the tracking map, management access allows full event management
+
+- **Full screen mode for tracking map**
+
 ## Roadmap
 
 - **Web** Team statistics and analytics
 - **API + Web** Timeline animation of verified location sequences
-- **Web + API** [OPT] checkpoint locations setup + map rendering
 
 ## QR Code Format
 

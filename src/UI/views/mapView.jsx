@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
+import { Fragment, useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useApolloClient, useQuery } from '@apollo/client/react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
@@ -133,9 +133,11 @@ function MapView({ event, teams }) {
   const [geofence, setGeofence] = useState(null)
   const [showWaypointScoring, setShowWaypointScoring] = useState(true)
   const [waypointVisits, setWaypointVisits] = useState([])
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false)
   const [_locationRenderVersion, setLocationRenderVersion] = useState(0)
 
   const mapRef = useRef(null)
+  const mapContainerRef = useRef(null)
   const intervalRef = useRef(null)
   const geofenceRef = useRef(null)
   const teamLocationsRef = useRef({})
@@ -487,6 +489,61 @@ function MapView({ event, teams }) {
     await Promise.all([fetchLocationData(), refetchWaypoints()])
   }
 
+  const toggleMapFullscreen = useCallback(async () => {
+    const mapContainer = mapContainerRef.current
+    if (!mapContainer) return
+
+    try {
+      if (document.fullscreenElement === mapContainer) {
+        await document.exitFullscreen()
+      } else {
+        await mapContainer.requestFullscreen()
+      }
+    } catch (error) {
+      console.error('Fullscreen toggle failed:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFullscreen = document.fullscreenElement === mapContainerRef.current
+      setIsMapFullscreen(isFullscreen)
+
+      // Leaflet needs an explicit resize when container dimensions change.
+      setTimeout(() => {
+        mapRef.current?.invalidateSize?.()
+      }, 0)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    const isEditableTarget = (target) => {
+      if (!target || !(target instanceof HTMLElement)) return false
+      const tag = target.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true
+      return Boolean(target.isContentEditable)
+    }
+
+    const handleKeydown = (event) => {
+      if (event.defaultPrevented || event.repeat) return
+      if (isEditableTarget(event.target)) return
+      if (event.key?.toLowerCase() !== 'f') return
+
+      event.preventDefault()
+      toggleMapFullscreen()
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+    return () => {
+      window.removeEventListener('keydown', handleKeydown)
+    }
+  }, [toggleMapFullscreen])
+
   const renderMap = () => {
     return (
       <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }} ref={mapRef} preferCanvas={true}>
@@ -771,6 +828,10 @@ function MapView({ event, teams }) {
         <button onClick={refreshAll} className="btn-primary">
           Refresh Now
         </button>
+
+        <button type="button" onClick={toggleMapFullscreen} className="btn-secondary">
+          {isMapFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map'}
+        </button>
       </div>
 
       <div className="map-layout">
@@ -815,7 +876,12 @@ function MapView({ event, teams }) {
           </div>
         </div>
 
-        <div className="map-container">{renderMap()}</div>
+        <div
+          ref={mapContainerRef}
+          className={`map-container ${isMapFullscreen ? 'fullscreen' : ''}`.trim()}
+        >
+          {renderMap()}
+        </div>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import {
   CREATE_WAYPOINT,
@@ -34,6 +34,25 @@ function ClickCapture({ onPointClick }) {
       onPointClick([event.latlng.lat, event.latlng.lng])
     },
   })
+  return null
+}
+
+function WaypointAutoFit({ points, active }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!active || !Array.isArray(points) || points.length === 0) return
+
+    // Fit to all known waypoint coordinates whenever editor is active and points change.
+    // This keeps the viewport focused on the waypoint cluster.
+    const bounds = points.map((point) => [point.lat, point.lon])
+    map.fitBounds(bounds, {
+      padding: [28, 28],
+      maxZoom: 17,
+      animate: false,
+    })
+  }, [map, points, active])
+
   return null
 }
 
@@ -71,6 +90,12 @@ function WaypointEditor({ event }) {
   const clearDrafts = () => {
     setDraftWaypoints([])
   }
+
+  const fitPoints = useMemo(() => {
+    const existing = waypoints.map((waypoint) => ({ lat: waypoint.lat, lon: waypoint.lon }))
+    const drafts = draftWaypoints.map((waypoint) => ({ lat: waypoint.lat, lon: waypoint.lon }))
+    return [...existing, ...drafts]
+  }, [waypoints, draftWaypoints])
 
   const handlePointClick = (point) => {
     const sequence = waypoints.length + draftWaypoints.length + 1
@@ -192,7 +217,7 @@ function WaypointEditor({ event }) {
 
   return (
     <div className="waypoint-editor">
-      <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Waypoints</h4>
+      <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Waypoints</h4>
 
       {error && (
         <div className="error-message" style={{ marginBottom: '1rem' }}>
@@ -210,13 +235,14 @@ function WaypointEditor({ event }) {
         className="btn-secondary"
         disabled={isSaving}
       >
-        {showEditor ? 'Hide waypoint editor' : 'Show waypoint editor'}
+        {showEditor ? '✕ Close waypoint editor' : '📍 Add \\ edit waypoints'}
       </button>
 
       {showEditor && (
         <>
-          <div style={{ height: '360px', marginTop: '1rem', borderRadius: '8px', overflow: 'hidden' }}>
+          <div className="editor-map-frame" style={{ marginTop: '1rem', borderRadius: '8px', overflow: 'hidden' }}>
             <MapContainer center={mapCenter} zoom={5} style={{ height: '100%', width: '100%' }}>
+              <WaypointAutoFit points={fitPoints} active={showEditor} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
