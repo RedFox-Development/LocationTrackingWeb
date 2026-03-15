@@ -4,6 +4,35 @@ import { useMutation } from '@apollo/client/react'
 import { CREATE_EVENT } from '../../api/graphql/event'
 import { parseDataUri } from '../../utils/dataUri'
 
+function formatExpirationDate(value) {
+  if (!value) return 'Not set'
+
+  if (typeof value === 'number') {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? 'Not set' : parsed.toLocaleDateString()
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+
+    // PostgreSQL DATE values often arrive as YYYY-MM-DD.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const parsed = new Date(`${trimmed}T00:00:00`)
+      return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toLocaleDateString()
+    }
+
+    // Some engines return 'YYYY-MM-DD HH:mm:ss' (space, no timezone).
+    const normalized = trimmed.includes(' ') && !trimmed.includes('T')
+      ? `${trimmed.replace(' ', 'T')}Z`
+      : trimmed
+
+    const parsed = new Date(normalized)
+    return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toLocaleDateString()
+  }
+
+  return 'Not set'
+}
+
 function EventSetup({ onEventCreated }) {
   const navigate = useNavigate()
   const [eventName, setEventName] = useState('')
@@ -107,7 +136,7 @@ function EventSetup({ onEventCreated }) {
               <p><strong>Organization:</strong> {createdEvent.organization_name}</p>
             )}
             {createdEvent.expiration_date && (
-              <p><strong>Expiration Date:</strong> {new Date(createdEvent.expiration_date).toLocaleDateString()}</p>
+              <p><strong>Expiration Date:</strong> {formatExpirationDate(createdEvent.expiration_date)}</p>
             )}
           </div>
           <div className="button-group">
