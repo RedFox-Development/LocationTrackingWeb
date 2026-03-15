@@ -57,6 +57,24 @@ const EventPage = (props) => {
 
     setEvent((current) => {
       const merged = mergeEventWithAuthFields(latestEventData.event, current)
+
+      if (
+        current &&
+        current.id === merged.id &&
+        current.keycode === merged.keycode &&
+        current.view_keycode === merged.view_keycode &&
+        current.access_level === merged.access_level &&
+        current.organization_name === merged.organization_name &&
+        current.expiration_date === merged.expiration_date &&
+        current.geofence_data === merged.geofence_data &&
+        current.image_data === merged.image_data &&
+        current.image_mime_type === merged.image_mime_type &&
+        current.logo_data === merged.logo_data &&
+        current.logo_mime_type === merged.logo_mime_type
+      ) {
+        return current
+      }
+
       localStorage.setItem('currentEvent', JSON.stringify(merged))
       return merged
     })

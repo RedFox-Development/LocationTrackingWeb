@@ -3,7 +3,7 @@
  * Allows users to view and edit event geofence
  */
 
-import { useState, useEffect } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { MapContainer, TileLayer, FeatureGroup } from 'react-leaflet'
 import { EditControl } from 'react-leaflet-draw'
 import { useMutation } from '@apollo/client/react'
@@ -395,4 +395,17 @@ function GeofenceEditor({ event, onGeofenceChange }) {
   )
 }
 
-export default GeofenceEditor
+function areRelevantPropsEqual(previousProps, nextProps) {
+  const previousEvent = previousProps.event || {}
+  const nextEvent = nextProps.event || {}
+
+  return (
+    previousEvent.id === nextEvent.id &&
+    previousEvent.keycode === nextEvent.keycode &&
+    previousEvent.access_level === nextEvent.access_level &&
+    previousEvent.geofence_data === nextEvent.geofence_data &&
+    previousProps.onGeofenceChange === nextProps.onGeofenceChange
+  )
+}
+
+export default memo(GeofenceEditor, areRelevantPropsEqual)
