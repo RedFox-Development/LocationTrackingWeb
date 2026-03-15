@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { LOGIN } from '../api/graphql/login'
+import { GET_EVENT } from '../api/graphql/event'
 import { GET_TEAMS } from '../api/graphql/team'
+import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { graphqlClient } from '../api/graphql/graphqlClient'
 
 function LoginPage() {
@@ -10,7 +12,7 @@ function LoginPage() {
   const [eventKeycode, setEventKeycode] = useState('')
   const [loginError, setLoginError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false)
+  const [isBootstrappingEvent, setIsBootstrappingEvent] = useState(false)
 
   // Redirect if already logged in (check only on mount)
   useEffect(() => {
@@ -67,25 +69,44 @@ function LoginPage() {
       localStorage.removeItem('currentWaypoints')
 
       try {
-        setIsLoadingTeams(true)
-        const teamsResult = await graphqlClient.query({
-          query: GET_TEAMS,
-          variables: { eventId: loggedInEvent.id },
-          fetchPolicy: 'network-only',
-        })
+        setIsBootstrappingEvent(true)
+
+        const [eventResult, teamsResult, waypointsResult] = await Promise.all([
+          graphqlClient.query({
+            query: GET_EVENT,
+            variables: { id: loggedInEvent.id },
+            fetchPolicy: 'network-only',
+          }),
+          graphqlClient.query({
+            query: GET_TEAMS,
+            variables: { eventId: loggedInEvent.id },
+            fetchPolicy: 'network-only',
+          }),
+          graphqlClient.query({
+            query: GET_WAYPOINTS,
+            variables: { eventId: loggedInEvent.id },
+            fetchPolicy: 'network-only',
+          }),
+        ])
+
+        const fullEvent = eventResult?.data?.event || loggedInEvent
         const teams = teamsResult?.data?.teams || []
+        const waypoints = waypointsResult?.data?.waypoints || []
+
+        localStorage.setItem('currentEvent', JSON.stringify(fullEvent))
         localStorage.setItem('currentTeams', JSON.stringify(teams))
-      } catch (teamsError) {
-        console.error('[LoginPage] team preload failed, continuing without cached teams:', teamsError)
+        localStorage.setItem('currentWaypoints', JSON.stringify(waypoints))
+      } catch (bootstrapError) {
+        console.error('[LoginPage] event bootstrap failed, continuing with minimal event data:', bootstrapError)
       } finally {
-        setIsLoadingTeams(false)
+        setIsBootstrappingEvent(false)
       }
 
       navigate('/event', { replace: true })
     } catch (err) {
       console.error('[LoginPage] Query execution error:', err)
       setLoginError(err.message || 'Failed to execute login query')
-      setIsLoadingTeams(false)
+      setIsBootstrappingEvent(false)
     } finally {
       setIsSubmitting(false)
     }
@@ -127,8 +148,8 @@ function LoginPage() {
               placeholder="Enter keycode"
             />
           </div>
-          <button type="submit" className="btn-primary" disabled={isSubmitting || isLoadingTeams}>
-            {isSubmitting ? 'Logging in...' : isLoadingTeams ? 'Loading teams...' : 'Login'}
+          <button type="submit" className="btn-primary" disabled={isSubmitting || isBootstrappingEvent}>
+            {isSubmitting ? 'Logging in...' : isBootstrappingEvent ? 'Loading event data...' : 'Login'}
           </button>
         </form>
 

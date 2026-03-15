@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@apollo/client/react'
-import { UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME } from '../api/graphql/event'
+import { useMutation, useQuery } from '@apollo/client/react'
+import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME } from '../api/graphql/event'
 import { parseDataUri } from '../utils/dataUri'
 import { exportEventAsZip } from '../utils/exportData'
 import { getImageDataUri } from '../utils/dataUri'
@@ -29,6 +29,12 @@ const EventPage = (props) => {
   const [updateLogo] = useMutation(UPDATE_EVENT_LOGO)
   const [updateOrgName] = useMutation(UPDATE_ORGANIZATION_NAME)
 
+  const { data: latestEventData } = useQuery(GET_EVENT, {
+    variables: { id: event?.id },
+    skip: !event?.id,
+    fetchPolicy: 'network-only',
+  })
+
   // Load event from localStorage
   useEffect(() => {
     const currentEvent = localStorage.getItem('currentEvent')
@@ -40,6 +46,16 @@ const EventPage = (props) => {
       navigate('/login')
     }
   }, [navigate])
+
+  useEffect(() => {
+    if (!latestEventData?.event) return
+
+    setEvent((current) => {
+      const merged = { ...(current || {}), ...latestEventData.event }
+      localStorage.setItem('currentEvent', JSON.stringify(merged))
+      return merged
+    })
+  }, [latestEventData])
 
   if (!event || !event.id) {
     return null

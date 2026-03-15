@@ -15,6 +15,11 @@ export const LOGIN = gql`
         keycode
         organization_name
         expiration_date
+        geofence_data
+        image_data
+        image_mime_type
+        logo_data
+        logo_mime_type
       }
     }
   }
