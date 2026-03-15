@@ -231,7 +231,7 @@ function MapView({ event, teams }) {
             variables: {
               event: event.name,
               team: team.name,
-              limit: 5000,
+              limit: 240,
             },
             fetchPolicy: 'network-only',
           })
