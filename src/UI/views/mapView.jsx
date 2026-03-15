@@ -5,6 +5,7 @@ import L from 'leaflet'
 import { GET_UPDATES } from '../../api/graphql/team'
 import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
 import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
+import { hasManageAccess } from '../../utils/eventAccess'
 import 'leaflet/dist/leaflet.css'
 import { EventHeader } from '../../components/EventHeader'
 
@@ -83,6 +84,42 @@ const formatDateTime = (value) => {
   return parsed.toLocaleString()
 }
 
+// Haversine distance in metres between two lat/lon points
+const haversineMeters = (lat1, lon1, lat2, lon2) => {
+  const R = 6371000
+  const φ1 = (lat1 * Math.PI) / 180
+  const φ2 = (lat2 * Math.PI) / 180
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Remove anomalous points from a chronologically-sorted location array using a
+// sliding-window median filter. Each point is compared against the spatial
+// median of its temporal neighbours; any point farther than maxDistMeters from
+// that median is considered a jitter artefact and discarded.
+// windowSize should be odd; maxDistMeters is the rejection threshold.
+const applyMedianFilter = (sortedUpdates, windowSize = 7, maxDistMeters = 300) => {
+  if (sortedUpdates.length < 3) return sortedUpdates
+  const half = Math.floor(windowSize / 2)
+  const filtered = []
+  for (let i = 0; i < sortedUpdates.length; i++) {
+    const lo = Math.max(0, i - half)
+    const hi = Math.min(sortedUpdates.length - 1, i + half)
+    const window = sortedUpdates.slice(lo, hi + 1)
+    const sortedLats = window.map((p) => p.lat).sort((a, b) => a - b)
+    const sortedLons = window.map((p) => p.lon).sort((a, b) => a - b)
+    const mid = Math.floor(sortedLats.length / 2)
+    const medLat = sortedLats[mid]
+    const medLon = sortedLons[mid]
+    if (haversineMeters(sortedUpdates[i].lat, sortedUpdates[i].lon, medLat, medLon) <= maxDistMeters) {
+      filtered.push(sortedUpdates[i])
+    }
+  }
+  return filtered.length > 0 ? filtered : sortedUpdates
+}
+
 const MAX_HISTORY_DOTS = 900
 
 function MapView({ event, teams }) {
@@ -106,6 +143,7 @@ function MapView({ event, teams }) {
 
   const teamLocations = teamLocationsRef.current
   const geofenceBreaches = geofenceBreachesRef.current
+  const canManageEvent = hasManageAccess(event)
 
   const {
     data: waypointData,
@@ -300,11 +338,12 @@ function MapView({ event, teams }) {
             const timeB = new Date(normalizeTimestamp(b.timestamp)).getTime()
             return timeA - timeB
           })
-          const latestUpdate = sortedUpdates[sortedUpdates.length - 1]
+          const filteredUpdates = applyMedianFilter(sortedUpdates)
+          const latestUpdate = filteredUpdates[filteredUpdates.length - 1]
 
           locations[result.teamId] = {
             latest: latestUpdate,
-            history: sortedUpdates,
+            history: filteredUpdates,
             teamName: result.teamName,
             teamColor: result.teamColor,
           }
@@ -392,7 +431,11 @@ function MapView({ event, teams }) {
         setLocationRenderVersion((version) => version + 1)
       }
 
-      await fetchWaypointVisits()
+      if (canManageEvent) {
+        await fetchWaypointVisits()
+      } else if (waypointVisits.length > 0) {
+        setWaypointVisits([])
+      }
     } catch (error) {
       console.error('Error fetching location data:', error)
     }
@@ -593,7 +636,7 @@ function MapView({ event, teams }) {
     <div className="map-view">
       <EventHeader event={event} />
 
-      {Object.keys(geofenceBreaches).length > 0 && geofence && (
+      {canManageEvent && Object.keys(geofenceBreaches).length > 0 && geofence && (
         <div
           className="geofence-alerts"
           style={{
@@ -617,75 +660,77 @@ function MapView({ event, teams }) {
         </div>
       )}
 
-      <div className="waypoint-score-panel">
-        <div className="waypoint-score-header">
-          <div>
-            <strong>Waypoint Scores</strong>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Visit rule: 4 consecutive updates within 15m
+      {canManageEvent && (
+        <div className="waypoint-score-panel">
+          <div className="waypoint-score-header">
+            <div>
+              <strong>Waypoint Scores</strong>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Visit rule: 4 consecutive updates within 15m
+              </div>
             </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowWaypointScoring((value) => !value)}
+            >
+              {showWaypointScoring ? 'Hide' : 'Show'}
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setShowWaypointScoring((value) => !value)}
-          >
-            {showWaypointScoring ? 'Hide' : 'Show'}
-          </button>
-        </div>
 
-        {showWaypointScoring && (
-          <div className="waypoint-score-table-wrap">
-            <table className="waypoint-score-table">
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  {waypoints.map((waypoint) => (
-                    <th key={`head-${waypoint.id}`}>
-                      {waypoint.name}
-                      {waypoint.is_required && <span className="waypoint-required-tag">R</span>}
-                    </th>
-                  ))}
-                  <th>Required</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teamScoreRows.map(({ team, visitMap, requiredVisited, requiredTotal, totalVisited, totalWaypoints }) => (
-                  <tr key={`score-row-${team.id}`}>
-                    <td style={{ textAlign: 'left', fontWeight: 600 }}>{team.name}</td>
-                    {waypoints.map((waypoint) => {
-                      const visitedAt = visitMap[waypoint.id]
-                      return (
-                        <td key={`score-${team.id}-${waypoint.id}`} title={visitedAt ? formatDateTime(visitedAt) : 'Not visited'}>
-                          {visitedAt ? (
-                            <span className="waypoint-score-hit">✓</span>
-                          ) : (
-                            <span className="waypoint-score-miss">-</span>
-                          )}
-                        </td>
-                      )
-                    })}
-                    <td>
-                      {requiredVisited}/{requiredTotal}
-                    </td>
-                    <td>
-                      {totalVisited}/{totalWaypoints}
-                    </td>
-                  </tr>
-                ))}
-                {teamScoreRows.length === 0 && (
+          {showWaypointScoring && (
+            <div className="waypoint-score-table-wrap">
+              <table className="waypoint-score-table">
+                <thead>
                   <tr>
-                    <td colSpan={waypoints.length + 3}>
-                      <span className="empty-state">No teams available</span>
-                    </td>
+                    <th>Team</th>
+                    {waypoints.map((waypoint) => (
+                      <th key={`head-${waypoint.id}`}>
+                        {waypoint.name}
+                        {waypoint.is_required && <span className="waypoint-required-tag">R</span>}
+                      </th>
+                    ))}
+                    <th>Required</th>
+                    <th>Total</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {teamScoreRows.map(({ team, visitMap, requiredVisited, requiredTotal, totalVisited, totalWaypoints }) => (
+                    <tr key={`score-row-${team.id}`}>
+                      <td style={{ textAlign: 'left', fontWeight: 600 }}>{team.name}</td>
+                      {waypoints.map((waypoint) => {
+                        const visitedAt = visitMap[waypoint.id]
+                        return (
+                          <td key={`score-${team.id}-${waypoint.id}`} title={visitedAt ? formatDateTime(visitedAt) : 'Not visited'}>
+                            {visitedAt ? (
+                              <span className="waypoint-score-hit">✓</span>
+                            ) : (
+                              <span className="waypoint-score-miss">-</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td>
+                        {requiredVisited}/{requiredTotal}
+                      </td>
+                      <td>
+                        {totalVisited}/{totalWaypoints}
+                      </td>
+                    </tr>
+                  ))}
+                  {teamScoreRows.length === 0 && (
+                    <tr>
+                      <td colSpan={waypoints.length + 3}>
+                        <span className="empty-state">No teams available</span>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="map-controls">
         <div className="control-group">

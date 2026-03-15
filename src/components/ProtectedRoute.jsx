@@ -19,7 +19,7 @@ function ProtectedRoute({ children }) {
       const teams = currentTeams ? JSON.parse(currentTeams) : []
       
       // Validate that event has required fields
-      if (!event.id || !event.name || !event.keycode) {
+      if (!event.id || !event.name || (!event.keycode && !event.view_keycode)) {
         console.error('[ProtectedRoute] Invalid event data, redirecting to login')
         localStorage.removeItem('currentEvent')
         localStorage.removeItem('currentTeams')

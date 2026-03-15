@@ -11,6 +11,8 @@ export const GET_EVENT = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       expiration_date
       geofence_data
@@ -56,6 +58,8 @@ export const CREATE_EVENT = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       expiration_date
       image_data
@@ -82,6 +86,8 @@ export const UPDATE_EVENT_IMAGE = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       image_data
       image_mime_type
@@ -107,6 +113,8 @@ export const UPDATE_EVENT_LOGO = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       image_data
       image_mime_type
@@ -130,6 +138,8 @@ export const UPDATE_ORGANIZATION_NAME = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       image_data
       image_mime_type
@@ -195,6 +205,8 @@ export const UPDATE_EVENT_GEOFENCE = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       geofence_data
     }
@@ -213,6 +225,8 @@ export const DELETE_EVENT_GEOFENCE = gql`
       id
       name
       keycode
+      view_keycode
+      access_level
       organization_name
       geofence_data
     }

@@ -20,7 +20,10 @@ function EventSetup({ onEventCreated }) {
 
   const [createEvent, { loading }] = useMutation(CREATE_EVENT, {
     onCompleted: (data) => {
-      const newEvent = data.createEvent
+      const newEvent = {
+        ...data.createEvent,
+        access_level: data.createEvent?.access_level || 'manage',
+      }
       setCreatedEvent(newEvent)
       
       // Store event in localStorage
@@ -98,7 +101,8 @@ function EventSetup({ onEventCreated }) {
           <div className="event-created-info">
             <p><strong>Event Name:</strong> {createdEvent.name}</p>
             <p><strong>Event ID:</strong> {createdEvent.id}</p>
-            <p><strong>Event Keycode:</strong> <code>{createdEvent.keycode}</code></p>
+            <p><strong>Manage Keycode:</strong> <code>{createdEvent.keycode}</code></p>
+            <p><strong>View-Only Keycode:</strong> <code>{createdEvent.view_keycode}</code></p>
             {createdEvent.organization_name && (
               <p><strong>Organization:</strong> {createdEvent.organization_name}</p>
             )}

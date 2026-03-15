@@ -2,6 +2,7 @@ import { graphqlClient } from '../api/graphql/graphqlClient'
 import { GET_EVENT } from '../api/graphql/event'
 import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
+import { mergeEventWithAuthFields } from './eventAccess'
 
 const setLocalJson = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value))
@@ -51,12 +52,22 @@ export const preloadEventDataBundle = async (eventId) => {
   ])
 
   const event = eventResult?.data?.event
+  const existingEvent = (() => {
+    const raw = localStorage.getItem('currentEvent')
+    if (!raw) return null
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  })()
   const teams = teamsResult?.data?.teams || []
   const waypoints = waypointsResult?.data?.waypoints || []
 
   if (event) {
-    setLocalJson('currentEvent', event)
-    syncGeofenceCache(event)
+    const mergedEvent = mergeEventWithAuthFields(event, existingEvent)
+    setLocalJson('currentEvent', mergedEvent)
+    syncGeofenceCache(mergedEvent)
   }
 
   setLocalJson('currentTeams', teams)

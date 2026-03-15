@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EventManager from '../UI/views/eventManager'
+import { hasManageAccess } from '../utils/eventAccess'
 
 function TeamsListPage() {
   const navigate = useNavigate()
@@ -12,6 +13,10 @@ function TeamsListPage() {
     const teamsData = localStorage.getItem('currentTeams')
     if (eventData && teamsData) {
       const parsedEvent = JSON.parse(eventData)
+      if (!hasManageAccess(parsedEvent)) {
+        navigate('/event/map', { replace: true })
+        return
+      }
       parsedEvent.teams = JSON.parse(teamsData)
       console.log('TeamsListPage: Loaded event with teams:', parsedEvent.teams)
       setEvent(parsedEvent)

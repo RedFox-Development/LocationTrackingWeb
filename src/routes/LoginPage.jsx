@@ -5,6 +5,7 @@ import { GET_EVENT } from '../api/graphql/event'
 import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { graphqlClient } from '../api/graphql/graphqlClient'
+import { hasManageAccess, mergeEventWithAuthFields } from '../utils/eventAccess'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -21,9 +22,9 @@ function LoginPage() {
 
     try {
       const parsedEvent = JSON.parse(currentEvent)
-      if (parsedEvent?.id && parsedEvent?.name && parsedEvent?.keycode) {
+      if (parsedEvent?.id && parsedEvent?.name && (parsedEvent?.keycode || parsedEvent?.view_keycode)) {
         console.log('[LoginPage] Already logged in, redirecting...')
-        navigate('/event', { replace: true })
+        navigate(hasManageAccess(parsedEvent) ? '/event' : '/event/map', { replace: true })
         return
       }
     } catch (storageError) {
@@ -63,7 +64,10 @@ function LoginPage() {
         return
       }
 
-      const loggedInEvent = loginResult.event
+      const loggedInEvent = {
+        ...loginResult.event,
+        access_level: loginResult.access_level || loginResult.event?.access_level || 'manage',
+      }
       localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
       localStorage.removeItem('currentTeams')
       localStorage.removeItem('currentWaypoints')
@@ -89,7 +93,7 @@ function LoginPage() {
           }),
         ])
 
-        const fullEvent = eventResult?.data?.event || loggedInEvent
+        const fullEvent = mergeEventWithAuthFields(eventResult?.data?.event || null, loggedInEvent)
         const teams = teamsResult?.data?.teams || []
         const waypoints = waypointsResult?.data?.waypoints || []
 
@@ -102,7 +106,7 @@ function LoginPage() {
         setIsBootstrappingEvent(false)
       }
 
-      navigate('/event', { replace: true })
+      navigate(hasManageAccess(loggedInEvent) ? '/event' : '/event/map', { replace: true })
     } catch (err) {
       console.error('[LoginPage] Query execution error:', err)
       setLoginError(err.message || 'Failed to execute login query')

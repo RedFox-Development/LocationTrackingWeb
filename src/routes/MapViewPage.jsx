@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client/react'
 import MapView from '../UI/views/mapView'
 import { GET_TEAMS } from '../api/graphql/team'
 import { GET_EVENT } from '../api/graphql/event'
+import { mergeEventWithAuthFields } from '../utils/eventAccess'
 
 function MapViewPage() {
   const navigate = useNavigate()
@@ -46,8 +47,11 @@ function MapViewPage() {
 
   useEffect(() => {
     if (eventData?.event) {
-      setEvent(eventData.event)
-      localStorage.setItem('currentEvent', JSON.stringify(eventData.event))
+      setEvent((current) => {
+        const merged = mergeEventWithAuthFields(eventData.event, current)
+        localStorage.setItem('currentEvent', JSON.stringify(merged))
+        return merged
+      })
     }
   }, [eventData])
 

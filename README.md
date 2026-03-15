@@ -102,9 +102,7 @@ This is part of a multi-project setup:
 
 ## Roadmap
 
-- **API + Web** Export event data (verify)
 - **Web** Team statistics and analytics
-- **API?** Location sequence verification (scrub of anomalous entries)
 - **API + Web** Timeline animation of verified location sequences
 - **Web + API** [OPT] checkpoint locations setup + map rendering
 
@@ -116,9 +114,8 @@ QR codes contain JSON data for the Flutter app:
   "teamName": "Team Alpha",
   "event": "Summer Challenge 2026",
   "apiUrl": "https://your-project.vercel.app/api",
-  "imageUrl": "https://example.com/event-image.png",
-  "expirationDate": "2026-03-01",
-  "timezone": "Europe/Helsinki"
+  "expirationDate": 1776286799999,
+  "timezone": "UTC"
 }
 ```
 

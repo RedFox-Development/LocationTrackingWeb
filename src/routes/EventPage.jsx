@@ -8,6 +8,7 @@ import { getImageDataUri } from '../utils/dataUri'
 import { EventHeader } from '../components/EventHeader'
 import GeofenceEditor from '../components/GeofenceEditor'
 import WaypointEditor from '../components/WaypointEditor'
+import { hasManageAccess, mergeEventWithAuthFields } from '../utils/eventAccess'
 
 const EventPage = (props) => {
   const navigate = useNavigate()
@@ -40,6 +41,10 @@ const EventPage = (props) => {
     const currentEvent = localStorage.getItem('currentEvent')
     if (currentEvent) {
       const eventData = JSON.parse(currentEvent)
+      if (!hasManageAccess(eventData)) {
+        navigate('/event/map', { replace: true })
+        return
+      }
       setEvent(eventData)
       setOrgNameValue(eventData.organization_name || '')
     } else {
@@ -51,7 +56,7 @@ const EventPage = (props) => {
     if (!latestEventData?.event) return
 
     setEvent((current) => {
-      const merged = { ...(current || {}), ...latestEventData.event }
+      const merged = mergeEventWithAuthFields(latestEventData.event, current)
       localStorage.setItem('currentEvent', JSON.stringify(merged))
       return merged
     })

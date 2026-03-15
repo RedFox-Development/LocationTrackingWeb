@@ -11,6 +11,7 @@ import EventPage from './routes/EventPage'
 import TeamsListPage from './routes/TeamsListPage'
 import MapViewPage from './routes/MapViewPage'
 import LogoutPage from './routes/LogoutPage'
+import { hasManageAccess } from './utils/eventAccess'
 import './UI/style/App.css'
 
 const App = () => {
@@ -24,6 +25,7 @@ const App = () => {
     const eventData = localStorage.getItem('currentEvent')
     return eventData ? JSON.parse(eventData) : null
   })
+  const canManageEvent = hasManageAccess(currentEvent)
   const lockSomeFeatures = false;
 
   useEffect(() => {
@@ -66,18 +68,22 @@ const App = () => {
           <nav>
             {isLoggedIn && (
               <>
-                <Link 
-                  to="/event" 
-                  className={location.pathname === '/event' ? 'active' : ''}
-                >
-                  Event Dashboard
-                </Link>
-                <Link 
-                  to="/teams" 
-                  className={location.pathname.startsWith('/teams') ? 'active' : ''}
-                >
-                  Teams
-                </Link>
+                {canManageEvent && (
+                  <Link 
+                    to="/event" 
+                    className={location.pathname === '/event' ? 'active' : ''}
+                  >
+                    Event Dashboard
+                  </Link>
+                )}
+                {canManageEvent && (
+                  <Link 
+                    to="/teams" 
+                    className={location.pathname.startsWith('/teams') ? 'active' : ''}
+                  >
+                    Teams
+                  </Link>
+                )}
                 <Link 
                   to="/event/map" 
                   className={location.pathname === '/event/map' ? 'active' : ''}

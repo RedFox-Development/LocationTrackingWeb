@@ -9,10 +9,13 @@ export const LOGIN = gql`
   query Login($eventName: String!, $keycode: String!) {
     login(event_name: $eventName, keycode: $keycode) {
       success
+      access_level
       event {
         id
         name
         keycode
+        view_keycode
+        access_level
         organization_name
         expiration_date
         geofence_data
