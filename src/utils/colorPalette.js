@@ -5,34 +5,34 @@
 
 // Array of visually distinct colors optimized for map visibility
 export const TEAM_COLORS = [
-  '#FF6B6B', // Coral Red
-  '#4ECDC4', // Turquoise
-  '#45B7D1', // Sky Blue
-  '#FFA07A', // Light Salmon
-  '#98D8C8', // Mint Green
-  '#F7DC6F', // Sunny Yellow
-  '#BB8FCE', // Lavender
-  '#85C1E2', // Powder Blue
-  '#FAD7A0', // Peach
-  '#AED6F1', // Light Blue
-  '#F8B4B4', // Pink
-  '#7FDBDA', // Aqua
-  '#82E0AA', // Light Green
-  '#F9E79F', // Cream Yellow
-  '#D7BDE2', // Light Purple
-  '#A9DFBF', // Pale Green
-  '#FAD02C', // Golden Yellow
-  '#45B39D', // Teal
-  '#F39C12', // Orange
-  '#8E44AD', // Purple
-  '#3498DB', // Blue
-  '#E74C3C', // Red
-  '#1ABC9C', // Sea Green
-  '#F06292', // Rose Pink
-  '#9575CD', // Medium Purple
-  '#4DB6AC', // Teal Blue
-  '#FFB74D', // Light Orange
-  '#A1887F', // Brown Grey
+  '#FF5A5F', // Bright Coral Red
+  '#FF7A00', // Vivid Orange
+  '#FFB000', // Sunburst Yellow
+  '#FFD93D', // Bright Lemon
+  '#7ED957', // Bright Lime Green
+  '#2ECC71', // Fresh Green
+  '#00C2A8', // Bright Teal
+  '#00D2D3', // Electric Cyan
+  '#20A4F3', // Bright Azure
+  '#3A86FF', // Vivid Blue
+  '#5E60CE', // Indigo Blue
+  '#7B61FF', // Bright Indigo
+  '#9B5DE5', // Bright Violet
+  '#C77DFF', // Orchid Purple
+  '#F15BB5', // Hot Pink
+  '#FF66C4', // Bubblegum Pink
+  '#FF8FAB', // Bright Rose
+  '#FB5607', // Strong Orange Red
+  '#06D6A0', // Neon Mint
+  '#00BBF9', // Bright Sky Blue
+  '#4CC9F0', // Clear Cyan
+  '#43AA8B', // Fresh Jade
+  '#90BE6D', // Bright Moss Green
+  '#F8961E', // Marigold
+  '#F94144', // Bright Red
+  '#577590', // Steel Blue
+  '#4361EE', // Royal Blue
+  '#B5179E', // Magenta
 ];
 
 /**
