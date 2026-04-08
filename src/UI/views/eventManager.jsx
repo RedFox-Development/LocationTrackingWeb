@@ -233,8 +233,6 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
       teamName: team.name,
       event: event.name,
       apiUrl: event.apiUrl || import.meta.env.VITE_API_URL,
-      teamAccessStart: team.access_start_date,
-      teamAccessEnd: team.access_end_date,
     })
   }
 
