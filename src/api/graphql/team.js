@@ -6,13 +6,16 @@
 import { gql } from '@apollo/client'
 
 export const CREATE_TEAM = gql`
-  mutation CreateTeam($eventId: Int!, $name: String!, $color: String, $expirationDate: String) {
+  mutation CreateTeam($eventId: Int!, $name: String!, $color: String, $expirationDate: DateTime) {
     createTeam(event_id: $eventId, name: $name, color: $color, expiration_date: $expirationDate) {
       id
       name
       color
       event_id
       expiration_date
+      access_start_date
+      access_end_date
+      activated
     }
   }
 `
@@ -38,6 +41,9 @@ export const GET_TEAMS = gql`
       color
       event_id
       expiration_date
+      access_start_date
+      access_end_date
+      activated
     }
   }
 `
@@ -50,6 +56,50 @@ export const UPDATE_TEAM_COLOR = gql`
       color
       event_id
       expiration_date
+      access_start_date
+      access_end_date
+      activated
+    }
+  }
+`
+
+export const UPDATE_TEAM_EXPIRATION = gql`
+  mutation UpdateTeamExpiration($teamId: Int!, $eventId: Int!, $keycode: String!, $expirationDate: DateTime) {
+    updateTeamExpiration(
+      team_id: $teamId
+      event_id: $eventId
+      keycode: $keycode
+      expiration_date: $expirationDate
+    ) {
+      id
+      name
+      color
+      event_id
+      expiration_date
+      access_start_date
+      access_end_date
+      activated
+    }
+  }
+`
+
+export const UPDATE_TEAM_ACCESS_WINDOW = gql`
+  mutation UpdateTeamAccessWindow($teamId: Int!, $eventId: Int!, $keycode: String!, $startDate: String, $endDate: String) {
+    updateTeamAccessWindow(
+      team_id: $teamId
+      event_id: $eventId
+      keycode: $keycode
+      start_date: $startDate
+      end_date: $endDate
+    ) {
+      id
+      name
+      color
+      event_id
+      expiration_date
+      access_start_date
+      access_end_date
+      activated
     }
   }
 `
@@ -62,6 +112,9 @@ export const DELETE_TEAM = gql`
       color
       event_id
       expiration_date
+      access_start_date
+      access_end_date
+      activated
     }
   }
 `

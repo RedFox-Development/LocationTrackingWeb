@@ -15,6 +15,9 @@ export const GET_EVENT = gql`
       access_level
       organization_name
       expiration_date
+      timezone
+      start_date
+      end_date
       geofence_data
       image_data
       image_mime_type
@@ -32,6 +35,9 @@ export const EVENT_INFO = gql`
       logo_data
       logo_mime_type
       organization_name
+      timezone
+      start_date
+      end_date
     }
   }
 `;
@@ -44,7 +50,10 @@ export const CREATE_EVENT = gql`
     $imageMimeType: String
     $logoData: String
     $logoMimeType: String
-    $expirationDate: String
+    $expirationDate: DateTime
+    $timezone: String
+    $startDate: String
+    $endDate: String
   ) {
     createEvent(
       name: $name
@@ -54,6 +63,9 @@ export const CREATE_EVENT = gql`
       logo_data: $logoData
       logo_mime_type: $logoMimeType
       expiration_date: $expirationDate
+      timezone: $timezone
+      start_date: $startDate
+      end_date: $endDate
     ) {
       id
       name
@@ -62,6 +74,9 @@ export const CREATE_EVENT = gql`
       access_level
       organization_name
       expiration_date
+      timezone
+      start_date
+      end_date
       image_data
       image_mime_type
       logo_data
@@ -145,6 +160,41 @@ export const UPDATE_ORGANIZATION_NAME = gql`
       image_mime_type
       logo_data
       logo_mime_type
+    }
+  }
+`
+
+export const UPDATE_EVENT_DEADLINE = gql`
+  mutation UpdateEventDeadline($eventId: Int!, $keycode: String!, $expirationDate: DateTime) {
+    updateEventDeadline(
+      event_id: $eventId
+      keycode: $keycode
+      expiration_date: $expirationDate
+    ) {
+      id
+      name
+      expiration_date
+      timezone
+      start_date
+      end_date
+    }
+  }
+`
+
+export const UPDATE_EVENT_TIMEFRAME = gql`
+  mutation UpdateEventTimeframe($eventId: Int!, $keycode: String!, $startDate: String, $endDate: String) {
+    updateEventTimeframe(
+      event_id: $eventId
+      keycode: $keycode
+      start_date: $startDate
+      end_date: $endDate
+    ) {
+      id
+      name
+      expiration_date
+      timezone
+      start_date
+      end_date
     }
   }
 `

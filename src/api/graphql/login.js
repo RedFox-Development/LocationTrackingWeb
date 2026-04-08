@@ -18,6 +18,9 @@ export const LOGIN = gql`
         access_level
         organization_name
         expiration_date
+        timezone
+        start_date
+        end_date
         geofence_data
         image_data
         image_mime_type

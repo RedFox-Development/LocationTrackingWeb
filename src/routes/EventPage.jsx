@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@apollo/client/react'
-import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME } from '../api/graphql/event'
+import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE } from '../api/graphql/event'
 import { parseDataUri } from '../utils/dataUri'
 import { exportEventAsZip } from '../utils/exportData'
 import { getImageDataUri } from '../utils/dataUri'
@@ -19,6 +19,7 @@ const EventPage = (props) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [eventDeadlineDay, setEventDeadlineDay] = useState('')
   
   // Export state
   const [exportStartDate, setExportStartDate] = useState('')
@@ -29,12 +30,29 @@ const EventPage = (props) => {
   const [updateImage] = useMutation(UPDATE_EVENT_IMAGE)
   const [updateLogo] = useMutation(UPDATE_EVENT_LOGO)
   const [updateOrgName] = useMutation(UPDATE_ORGANIZATION_NAME)
+  const [updateEventDeadline] = useMutation(UPDATE_EVENT_DEADLINE)
 
   const { data: latestEventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
     skip: !event?.id,
     fetchPolicy: 'network-only',
   })
+
+  const toDateInput = (value) => {
+    if (!value) return ''
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+      return value.trim()
+    }
+
+    const normalized =
+      typeof value === 'string' && value.includes(' ') && !value.includes('T')
+        ? `${value.replace(' ', 'T')}Z`
+        : value
+
+    const date = new Date(normalized)
+    if (Number.isNaN(date.getTime())) return ''
+    return date.toISOString().split('T')[0]
+  }
 
   // Load event from localStorage
   useEffect(() => {
@@ -47,6 +65,7 @@ const EventPage = (props) => {
       }
       setEvent(eventData)
       setOrgNameValue(eventData.organization_name || '')
+        setEventDeadlineDay(toDateInput(eventData.expiration_date))
     } else {
       navigate('/login')
     }
@@ -76,6 +95,7 @@ const EventPage = (props) => {
       }
 
       localStorage.setItem('currentEvent', JSON.stringify(merged))
+        setEventDeadlineDay(toDateInput(merged.expiration_date))
       return merged
     })
   }, [latestEventData])
@@ -203,6 +223,40 @@ const EventPage = (props) => {
     }
   }
 
+  const handleEventDeadlineSave = async () => {
+    if (!eventDeadlineDay) {
+      setError('Event expiration day is required')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const { data } = await updateEventDeadline({
+        variables: {
+          eventId: event.id,
+          keycode: event.keycode,
+          expirationDate: `${eventDeadlineDay}T23:59:59Z`,
+        },
+      })
+
+      const updated = {
+        ...event,
+        expiration_date: data.updateEventDeadline.expiration_date,
+        end_date: data.updateEventDeadline.end_date,
+      }
+      setEvent(updated)
+      localStorage.setItem('currentEvent', JSON.stringify(updated))
+      setSuccess('Event expiration day updated')
+    } catch (err) {
+      setError(err.message || 'Failed to update event expiration day')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleExportData = async () => {
     setExporting(true)
     setError(null)
@@ -253,6 +307,28 @@ const EventPage = (props) => {
           </div>
 
           <div className="info-item">
+            <label>Event Expiration Day</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+              <div className="form-group" style={{ margin: 0, width: '75%' }}>
+                <input
+                  type="date"
+                  value={eventDeadlineDay}
+                  onChange={(e) => setEventDeadlineDay(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+              <button
+                onClick={handleEventDeadlineSave}
+                className="btn-secondary"
+                disabled={loading}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                Save Expiration Day
+              </button>
+            </div>
+          </div>
+
+          <div className="info-item">
             <label>Organization Name</label>
             {editingOrgName ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
@@ -268,7 +344,7 @@ const EventPage = (props) => {
                   onClick={handleOrgNameSave} 
                   className="btn-primary" 
                   disabled={loading}
-                  style={{ padding: '0.5rem 1rem' }}
+                  style={{ padding: '0.5rem 1rem', marginLeft: '-1rem' }}
                 >
                   Save
                 </button>
@@ -279,7 +355,7 @@ const EventPage = (props) => {
                   }} 
                   className="btn-secondary"
                   disabled={loading}
-                  style={{ padding: '0.5rem 1rem' }}
+                  style={{ padding: '0.5rem 1rem', marginLeft: '-1rem' }}
                 >
                   Cancel
                 </button>
@@ -290,7 +366,7 @@ const EventPage = (props) => {
                 <button 
                   onClick={() => setEditingOrgName(true)} 
                   className="btn-secondary"
-                  style={{ padding: '0.5rem 1rem', marginLeft: '-0.2rem' }}
+                  style={{ padding: '0.5rem 1rem', marginLeft: '-1rem' }}
                 >
                   Edit
                 </button>

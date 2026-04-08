@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useMutation } from '@apollo/client/react'
 import { QRCode } from 'react-qrcode-logo'
-import { CREATE_TEAM, UPDATE_TEAM_COLOR, DELETE_TEAM } from '../../api/graphql/team'
+import { CREATE_TEAM, UPDATE_TEAM_ACCESS_WINDOW, UPDATE_TEAM_COLOR, DELETE_TEAM } from '../../api/graphql/team'
 import { getRandomColor } from '../../utils/colorPalette'
 import { getImageDataUri } from '../../utils/dataUri'
 
@@ -9,28 +9,32 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
   const [teams, setTeams] = useState(event?.teams || [])
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamColor, setNewTeamColor] = useState(() => getRandomColor())
-  const [newTeamExpiration, setNewTeamExpiration] = useState(() => {
-    const oneMonthFromNow = new Date()
-    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
-    return oneMonthFromNow.toISOString().split('T')[0]
-  })
-  const [expirationDate, setExpirationDate] = useState(() => {
-    const oneMonthFromNow = new Date()
-    oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
-    return oneMonthFromNow.toISOString().split('T')[0]
-  })
-  const [timezone, setTimezone] = useState('UTC')
   const [selectedTeam, setSelectedTeam] = useState(null)
+  const [selectedTeamAccessStart, setSelectedTeamAccessStart] = useState('')
+  const [selectedTeamAccessEnd, setSelectedTeamAccessEnd] = useState('')
   const [editingTeamId, setEditingTeamId] = useState(null)
   const [editColor, setEditColor] = useState('')
   const [error, setError] = useState(null)
 
   // Apollo mutations
   const [createTeamMutation, { loading: createLoading }] = useMutation(CREATE_TEAM)
+  const [updateTeamAccessWindowMutation, { loading: updateAccessWindowLoading }] = useMutation(UPDATE_TEAM_ACCESS_WINDOW)
   const [updateTeamColorMutation, { loading: updateLoading }] = useMutation(UPDATE_TEAM_COLOR)
   const [deleteTeamMutation, { loading: deleteLoading }] = useMutation(DELETE_TEAM)
 
-  const loading = createLoading || updateLoading || deleteLoading
+  const loading = createLoading || updateAccessWindowLoading || updateLoading || deleteLoading
+
+  const toDateInput = (value) => {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    return date.toISOString().split('T')[0]
+  }
+
+  const toIsoStartOfDay = (value) => (value ? `${value}T00:00:00Z` : null)
+  const toIsoEndOfDay = (value) => (value ? `${value}T23:59:59Z` : null)
+  const getTeamAccessStartDate = (team) => toDateInput(team?.access_start_date)
+  const getTeamAccessEndDate = (team) => toDateInput(team?.access_end_date)
 
   // Sync teams when event changes
   useEffect(() => {
@@ -38,6 +42,17 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
       setTeams(event.teams)
     }
   }, [event])
+
+  useEffect(() => {
+    if (!selectedTeam) {
+      setSelectedTeamAccessStart('')
+      setSelectedTeamAccessEnd('')
+      return
+    }
+
+    setSelectedTeamAccessStart(getTeamAccessStartDate(selectedTeam))
+    setSelectedTeamAccessEnd(getTeamAccessEndDate(selectedTeam))
+  }, [selectedTeam])
 
   const handleAddTeam = async (e) => {
     e.preventDefault()
@@ -51,7 +66,7 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
           eventId: event.id,
           name: newTeamName.trim(),
           color: newTeamColor,
-          expirationDate: newTeamExpiration ? `${newTeamExpiration}T23:59:59Z` : null
+          expirationDate: null
         }
       })
 
@@ -66,10 +81,9 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
       
       setNewTeamName('')
       setNewTeamColor(getRandomColor())
-      const oneMonthFromNow = new Date()
-      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
-      setNewTeamExpiration(oneMonthFromNow.toISOString().split('T')[0])
       setSelectedTeam(newTeam)
+      setSelectedTeamAccessStart('')
+      setSelectedTeamAccessEnd('')
       
       // Notify parent to reload data
       if (onTeamsChanged) {
@@ -132,21 +146,6 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
     }
   }
 
-  const isExpiringSoon = (expirationDate) => {
-    if (!expirationDate) return false
-    const expDate = new Date(expirationDate)
-    const today = new Date()
-    const daysUntilExpiration = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24))
-    return daysUntilExpiration <= 7 && daysUntilExpiration >= 0
-  }
-
-  const isExpired = (expirationDate) => {
-    if (!expirationDate) return false
-    const expDate = new Date(expirationDate)
-    const today = new Date()
-    return expDate < today
-  }
-
   const handleCancelEditColor = () => {
     setEditingTeamId(null)
     setEditColor('')
@@ -184,25 +183,62 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
     }
   }
 
-  const generateQRData = (team) => {
-    // Use the QR config expirationDate (user can modify this)
-    const teamExpiration = expirationDate
-    // Convert to Unix timestamp in milliseconds for Android app
-    let expirationTimestamp = null
-    if (teamExpiration) {
-      const date = new Date(teamExpiration)
-      // Set to end of day (23:59:59)
-      date.setHours(23, 59, 59, 999)
-      expirationTimestamp = date.getTime()
+  const handleSaveTeamAccessWindow = async () => {
+    if (!selectedTeam) return
+
+    if (!selectedTeamAccessStart || !selectedTeamAccessEnd) {
+      setError('Team access start and end dates are required')
+      return
     }
+
+    if (new Date(selectedTeamAccessStart) > new Date(selectedTeamAccessEnd)) {
+      setError('Team access start must be on or before team access end')
+      return
+    }
+
+    setError(null)
+    try {
+      const { data } = await updateTeamAccessWindowMutation({
+        variables: {
+          teamId: selectedTeam.id,
+          eventId: event.id,
+          keycode: event.keycode,
+          startDate: toIsoStartOfDay(selectedTeamAccessStart),
+          endDate: toIsoEndOfDay(selectedTeamAccessEnd),
+        },
+      })
+
+      const updatedTeam = data.updateTeamAccessWindow
+      const updatedTeams = teams.map((team) => (team.id === selectedTeam.id ? updatedTeam : team))
+      setTeams(updatedTeams)
+      setSelectedTeam(updatedTeam)
+
+      const updatedEvent = {
+        ...event,
+        teams: updatedTeams,
+      }
+      localStorage.setItem('currentEvent', JSON.stringify(updatedEvent))
+      localStorage.setItem('currentTeams', JSON.stringify(updatedTeams))
+
+      if (onTeamsChanged) {
+        onTeamsChanged()
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update team access window')
+    }
+  }
+
+  const generateQRData = (team) => {
     return JSON.stringify({
       teamName: team.name,
       event: event.name,
       apiUrl: event.apiUrl || import.meta.env.VITE_API_URL,
-      expirationDate: expirationTimestamp,
-      timezone: timezone
+      teamAccessStart: team.access_start_date,
+      teamAccessEnd: team.access_end_date,
     })
   }
+
+  const hasTeamAccessWindow = (team) => Boolean(team?.access_start_date && team?.access_end_date)
 
   const downloadQRCode = (team) => {
     const canvas = document.getElementById(`qr-${team.id}`)
@@ -266,15 +302,6 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
               🎲 Random
             </button>
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label>Expires:</label>
-            <input
-              type="date"
-              value={newTeamExpiration}
-              onChange={(e) => setNewTeamExpiration(e.target.value)}
-              disabled={loading}
-            />
-          </div>
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Adding...' : 'Add Team'}
           </button>
@@ -288,13 +315,10 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
               <p className="empty-state">No teams yet. Add a team to get started.</p>
             ) : (
               teams.map(team => {
-                const expiringSoon = isExpiringSoon(team.expiration_date)
-                const expired = isExpired(team.expiration_date)
-                
                 return (
                   <div
                     key={team.id}
-                    className={`team-item ${selectedTeam?.id === team.id ? 'selected' : ''} ${expired ? 'expired' : ''} ${expiringSoon ? 'expiring-soon' : ''}`}
+                    className={`team-item ${selectedTeam?.id === team.id ? 'selected' : ''}`}
                     onClick={() => setSelectedTeam(team)}
                   >
                     {editingTeamId === team.id ? (
@@ -328,21 +352,9 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
                         <div className="team-color-indicator" style={{ backgroundColor: team.color || '#3b82f6' }}></div>
                         <div style={{ flex: 1 }}>
                           <span className="team-name">{team.name}</span>
-                          {team.expiration_date && (() => {
-                            try {
-                              const expDate = new Date(team.expiration_date)
-                              if (isNaN(expDate.getTime())) return null
-                              return (
-                                <div style={{ fontSize: '0.85rem', color: expired ? 'var(--error-color)' : expiringSoon ? '#f39c12' : 'var(--text-tertiary)' }}>
-                                  Expires: {expDate.toLocaleDateString()}
-                                  {expired && ' (EXPIRED)'}
-                                  {expiringSoon && !expired && ' (Soon)'}
-                                </div>
-                              )
-                            } catch (e) {
-                              return null
-                            }
-                          })()}
+                          <div style={{ fontSize: '0.8rem', color: team.activated ? '#0d7a22' : 'var(--text-tertiary)' }}>
+                            {team.activated ? 'Activated' : 'Not activated'}
+                          </div>
                         </div>
                         <button
                           onClick={(e) => {
@@ -377,53 +389,74 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
           {selectedTeam ? (
             <>
               <h3>QR Code for {selectedTeam.name}</h3>
-              
+
               <div className="qr-config">
-                <h4>QR Code Configuration</h4>
+                <h4>Team Access Window</h4>
                 <div className="form-group">
-                  <label>Expiration Date:</label>
+                  <label>Team Access Start:</label>
                   <input
                     type="date"
-                    value={expirationDate}
-                    onChange={(e) => setExpirationDate(e.target.value)}
+                    value={selectedTeamAccessStart}
+                    onChange={(e) => setSelectedTeamAccessStart(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Timezone:</label>
-                  <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
-                    <option value="UTC">UTC</option>
-                    <option value="Europe/Helsinki">Europe/Helsinki</option>
-                    <option value="Europe/London">Europe/London</option>
-                    <option value="America/New_York">America/New_York</option>
-                    <option value="America/Los_Angeles">America/Los_Angeles</option>
-                    <option value="Asia/Tokyo">Asia/Tokyo</option>
-                  </select>
+                  <label>Team Access End:</label>
+                  <input
+                    type="date"
+                    value={selectedTeamAccessEnd}
+                    onChange={(e) => setSelectedTeamAccessEnd(e.target.value)}
+                  />
                 </div>
+                <button className="btn-secondary" onClick={handleSaveTeamAccessWindow} disabled={loading}>
+                  Save Team Access Window
+                </button>
               </div>
 
-              <div className="qr-code-container">
-                <QRCode
-                  id={`qr-${selectedTeam.id}`}
-                  value={generateQRData(selectedTeam)}
-                  size={320}
-                  logoImage={event.logo_data ? getImageDataUri(event.logo_data, event.logo_mime_type) : undefined}
-                  logoWidth={64}
-                  logoHeight={64}
-                  removeQrCodeBehindLogo={true}
-                  qrStyle="dots"
-                  eyeRadius={2}
-                />
+              <div className="qr-config" style={{ marginTop: '1rem' }}>
+                <h4>Selected Team Rules</h4>
+                <div style={{ marginBottom: '0.5rem', color: selectedTeam.activated ? '#0d7a22' : 'var(--text-tertiary)' }}>
+                  Activation: {selectedTeam.activated ? 'Activated' : 'Not activated'}
+                </div>
+                {hasTeamAccessWindow(selectedTeam) ? (
+                  <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--text-secondary)' }}>
+                    <div>Access start: {toDateInput(selectedTeam.access_start_date)}</div>
+                    <div>Access end: {toDateInput(selectedTeam.access_end_date)}</div>
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-tertiary)' }}>
+                    Set the team access window to generate the QR code.
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => downloadQRCode(selectedTeam)}
-                className="btn-primary"
-              >
-                Download QR Code
-              </button>
-              <div className="qr-info">
-                <h4>QR Code Information</h4>
-                <pre>{JSON.stringify(JSON.parse(generateQRData(selectedTeam)), null, 2)}</pre>
-              </div>
+
+              {hasTeamAccessWindow(selectedTeam) && (
+                <>
+                  <div className="qr-code-container">
+                    <QRCode
+                      id={`qr-${selectedTeam.id}`}
+                      value={generateQRData(selectedTeam)}
+                      size={320}
+                      logoImage={event.logo_data ? getImageDataUri(event.logo_data, event.logo_mime_type) : undefined}
+                      logoWidth={64}
+                      logoHeight={64}
+                      removeQrCodeBehindLogo={true}
+                      qrStyle="dots"
+                      eyeRadius={2}
+                    />
+                  </div>
+                  <button
+                    onClick={() => downloadQRCode(selectedTeam)}
+                    className="btn-primary"
+                  >
+                    Download QR Code
+                  </button>
+                  <div className="qr-info">
+                    <h4>QR Code Information</h4>
+                    <pre>{JSON.stringify(JSON.parse(generateQRData(selectedTeam)), null, 2)}</pre>
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <div className="empty-state">
