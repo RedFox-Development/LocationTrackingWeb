@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useMutation } from '@apollo/client/react'
 import { QRCode } from 'react-qrcode-logo'
-import { CREATE_TEAM, UPDATE_TEAM_ACCESS_WINDOW, UPDATE_TEAM_COLOR, DELETE_TEAM } from '../../api/graphql/team'
+import { CREATE_TEAM, UPDATE_TEAM_COLOR, DELETE_TEAM } from '../../api/graphql/team'
+import { UPDATE_TEAM_ACCESS_TIMEFRAME } from '../../api/graphql/event'
 import { getRandomColor } from '../../utils/colorPalette'
 import { getImageDataUri } from '../../utils/dataUri'
 
@@ -10,19 +11,19 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
   const [newTeamName, setNewTeamName] = useState('')
   const [newTeamColor, setNewTeamColor] = useState(() => getRandomColor())
   const [selectedTeam, setSelectedTeam] = useState(null)
-  const [selectedTeamAccessStart, setSelectedTeamAccessStart] = useState('')
-  const [selectedTeamAccessEnd, setSelectedTeamAccessEnd] = useState('')
+  const [teamAccessTimeframeStart, setTeamAccessTimeframeStart] = useState('')
+  const [teamAccessTimeframeEnd, setTeamAccessTimeframeEnd] = useState('')
   const [editingTeamId, setEditingTeamId] = useState(null)
   const [editColor, setEditColor] = useState('')
   const [error, setError] = useState(null)
 
   // Apollo mutations
   const [createTeamMutation, { loading: createLoading }] = useMutation(CREATE_TEAM)
-  const [updateTeamAccessWindowMutation, { loading: updateAccessWindowLoading }] = useMutation(UPDATE_TEAM_ACCESS_WINDOW)
+  const [updateTeamAccessTimeframeMutation, { loading: updateAccessTimeframeLoading }] = useMutation(UPDATE_TEAM_ACCESS_TIMEFRAME)
   const [updateTeamColorMutation, { loading: updateLoading }] = useMutation(UPDATE_TEAM_COLOR)
   const [deleteTeamMutation, { loading: deleteLoading }] = useMutation(DELETE_TEAM)
 
-  const loading = createLoading || updateAccessWindowLoading || updateLoading || deleteLoading
+  const loading = createLoading || updateAccessTimeframeLoading || updateLoading || deleteLoading
 
   const toDateInput = (value) => {
     if (!value) return ''
@@ -33,8 +34,8 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
 
   const toIsoStartOfDay = (value) => (value ? `${value}T00:00:00Z` : null)
   const toIsoEndOfDay = (value) => (value ? `${value}T23:59:59Z` : null)
-  const getTeamAccessStartDate = (team) => toDateInput(team?.access_start_date)
-  const getTeamAccessEndDate = (team) => toDateInput(team?.access_end_date)
+  const getEventAccessTimeframeStart = () => toDateInput(event?.team_access_timeframe_start)
+  const getEventAccessTimeframeEnd = () => toDateInput(event?.team_access_timeframe_end)
 
   // Sync teams when event changes
   useEffect(() => {
@@ -45,14 +46,15 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
 
   useEffect(() => {
     if (!selectedTeam) {
-      setSelectedTeamAccessStart('')
-      setSelectedTeamAccessEnd('')
+      setTeamAccessTimeframeStart('')
+      setTeamAccessTimeframeEnd('')
       return
     }
 
-    setSelectedTeamAccessStart(getTeamAccessStartDate(selectedTeam))
-    setSelectedTeamAccessEnd(getTeamAccessEndDate(selectedTeam))
-  }, [selectedTeam])
+    // Load event-level team access timeframe
+    setTeamAccessTimeframeStart(getEventAccessTimeframeStart())
+    setTeamAccessTimeframeEnd(getEventAccessTimeframeEnd())
+  }, [selectedTeam, event])
 
   const handleAddTeam = async (e) => {
     e.preventDefault()
@@ -183,48 +185,39 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
     }
   }
 
-  const handleSaveTeamAccessWindow = async () => {
-    if (!selectedTeam) return
-
-    if (!selectedTeamAccessStart || !selectedTeamAccessEnd) {
-      setError('Team access start and end dates are required')
+  const handleSaveTeamAccessTimeframe = async () => {
+    if (!teamAccessTimeframeStart || !teamAccessTimeframeEnd) {
+      setError('Team access timeframe start and end dates are required')
       return
     }
 
-    if (new Date(selectedTeamAccessStart) > new Date(selectedTeamAccessEnd)) {
-      setError('Team access start must be on or before team access end')
+    if (new Date(teamAccessTimeframeStart) > new Date(teamAccessTimeframeEnd)) {
+      setError('Team access timeframe start must be on or before end')
       return
     }
 
     setError(null)
     try {
-      const { data } = await updateTeamAccessWindowMutation({
+      const { data } = await updateTeamAccessTimeframeMutation({
         variables: {
-          teamId: selectedTeam.id,
           eventId: event.id,
           keycode: event.keycode,
-          startDate: toIsoStartOfDay(selectedTeamAccessStart),
-          endDate: toIsoEndOfDay(selectedTeamAccessEnd),
+          startDate: toIsoStartOfDay(teamAccessTimeframeStart),
+          endDate: toIsoEndOfDay(teamAccessTimeframeEnd),
         },
       })
 
-      const updatedTeam = data.updateTeamAccessWindow
-      const updatedTeams = teams.map((team) => (team.id === selectedTeam.id ? updatedTeam : team))
-      setTeams(updatedTeams)
-      setSelectedTeam(updatedTeam)
-
       const updatedEvent = {
         ...event,
-        teams: updatedTeams,
+        ...data.updateTeamAccessTimeframe,
       }
       localStorage.setItem('currentEvent', JSON.stringify(updatedEvent))
-      localStorage.setItem('currentTeams', JSON.stringify(updatedTeams))
 
       if (onTeamsChanged) {
         onTeamsChanged()
       }
     } catch (err) {
-      setError(err.message || 'Failed to update team access window')
+      setError(err.message || 'Failed to update team access timeframe')
     }
   }
 
@@ -236,7 +229,7 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
     })
   }
 
-  const hasTeamAccessWindow = (team) => Boolean(team?.access_start_date && team?.access_end_date)
+  const hasTeamAccessTimeframe = () => Boolean(event?.team_access_timeframe_start && event?.team_access_timeframe_end)
 
   const downloadQRCode = (team) => {
     const canvas = document.getElementById(`qr-${team.id}`)
@@ -389,46 +382,49 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
               <h3>QR Code for {selectedTeam.name}</h3>
 
               <div className="qr-config">
-                <h4>Team Access Window</h4>
+                <h4>Team Access Timeframe</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                  All teams in this event share the same access window for location updates.
+                </p>
                 <div className="form-group">
-                  <label>Team Access Start:</label>
+                  <label>Access Start:</label>
                   <input
                     type="date"
-                    value={selectedTeamAccessStart}
-                    onChange={(e) => setSelectedTeamAccessStart(e.target.value)}
+                    value={teamAccessTimeframeStart}
+                    onChange={(e) => setTeamAccessTimeframeStart(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Team Access End:</label>
+                  <label>Access End:</label>
                   <input
                     type="date"
-                    value={selectedTeamAccessEnd}
-                    onChange={(e) => setSelectedTeamAccessEnd(e.target.value)}
+                    value={teamAccessTimeframeEnd}
+                    onChange={(e) => setTeamAccessTimeframeEnd(e.target.value)}
                   />
                 </div>
-                <button className="btn-secondary" onClick={handleSaveTeamAccessWindow} disabled={loading}>
-                  Save Team Access Window
+                <button className="btn-secondary" onClick={handleSaveTeamAccessTimeframe} disabled={loading}>
+                  Save Team Access Timeframe
                 </button>
               </div>
 
               <div className="qr-config" style={{ marginTop: '1rem' }}>
-                <h4>Selected Team Rules</h4>
+                <h4>Selected Team Status</h4>
                 <div style={{ marginBottom: '0.5rem', color: selectedTeam.activated ? '#0d7a22' : 'var(--text-tertiary)' }}>
                   Activation: {selectedTeam.activated ? 'Activated' : 'Not activated'}
                 </div>
-                {hasTeamAccessWindow(selectedTeam) ? (
+                {hasTeamAccessTimeframe() ? (
                   <div style={{ display: 'grid', gap: '0.35rem', color: 'var(--text-secondary)' }}>
-                    <div>Access start: {toDateInput(selectedTeam.access_start_date)}</div>
-                    <div>Access end: {toDateInput(selectedTeam.access_end_date)}</div>
+                    <div>Timeframe start: {getEventAccessTimeframeStart()}</div>
+                    <div>Timeframe end: {getEventAccessTimeframeEnd()}</div>
                   </div>
                 ) : (
                   <div style={{ color: 'var(--text-tertiary)' }}>
-                    Set the team access window to generate the QR code.
+                    Set the team access timeframe to generate the QR code.
                   </div>
                 )}
               </div>
 
-              {hasTeamAccessWindow(selectedTeam) && (
+              {hasTeamAccessTimeframe() && (
                 <>
                   <div className="qr-code-container">
                     <QRCode

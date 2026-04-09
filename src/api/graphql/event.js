@@ -18,6 +18,8 @@ export const GET_EVENT = gql`
       timezone
       start_date
       end_date
+      team_access_timeframe_start
+      team_access_timeframe_end
       geofence_data
       image_data
       image_mime_type
@@ -195,6 +197,28 @@ export const UPDATE_EVENT_TIMEFRAME = gql`
       timezone
       start_date
       end_date
+      team_access_timeframe_start
+      team_access_timeframe_end
+    }
+  }
+`
+
+export const UPDATE_TEAM_ACCESS_TIMEFRAME = gql`
+  mutation UpdateTeamAccessTimeframe($eventId: Int!, $keycode: String!, $startDate: DateTime, $endDate: DateTime) {
+    updateTeamAccessTimeframe(
+      event_id: $eventId
+      keycode: $keycode
+      team_access_timeframe_start: $startDate
+      team_access_timeframe_end: $endDate
+    ) {
+      id
+      name
+      expiration_date
+      timezone
+      start_date
+      end_date
+      team_access_timeframe_start
+      team_access_timeframe_end
     }
   }
 `

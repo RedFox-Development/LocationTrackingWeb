@@ -6,15 +6,12 @@
 import { gql } from '@apollo/client'
 
 export const CREATE_TEAM = gql`
-  mutation CreateTeam($eventId: Int!, $name: String!, $color: String, $expirationDate: DateTime) {
-    createTeam(event_id: $eventId, name: $name, color: $color, expiration_date: $expirationDate) {
+  mutation CreateTeam($eventId: Int!, $name: String!, $color: String) {
+    createTeam(event_id: $eventId, name: $name, color: $color) {
       id
       name
       color
       event_id
-      expiration_date
-      access_start_date
-      access_end_date
       activated
     }
   }
@@ -40,9 +37,6 @@ export const GET_TEAMS = gql`
       name
       color
       event_id
-      expiration_date
-      access_start_date
-      access_end_date
       activated
     }
   }
@@ -55,9 +49,6 @@ export const UPDATE_TEAM_COLOR = gql`
       name
       color
       event_id
-      expiration_date
-      access_start_date
-      access_end_date
       activated
     }
   }
@@ -83,23 +74,18 @@ export const UPDATE_TEAM_EXPIRATION = gql`
   }
 `
 
-export const UPDATE_TEAM_ACCESS_WINDOW = gql`
-  mutation UpdateTeamAccessWindow($teamId: Int!, $eventId: Int!, $keycode: String!, $startDate: String, $endDate: String) {
-    updateTeamAccessWindow(
-      team_id: $teamId
+export const UPDATE_TEAM_ACCESS_TIMEFRAME = gql`
+  mutation UpdateTeamAccessTimeframe($eventId: Int!, $keycode: String!, $startDate: DateTime, $endDate: DateTime) {
+    updateTeamAccessTimeframe(
       event_id: $eventId
       keycode: $keycode
-      start_date: $startDate
-      end_date: $endDate
+      team_access_timeframe_start: $startDate
+      team_access_timeframe_end: $endDate
     ) {
       id
       name
-      color
-      event_id
-      expiration_date
-      access_start_date
-      access_end_date
-      activated
+      team_access_timeframe_start
+      team_access_timeframe_end
     }
   }
 `
@@ -111,9 +97,6 @@ export const DELETE_TEAM = gql`
       name
       color
       event_id
-      expiration_date
-      access_start_date
-      access_end_date
       activated
     }
   }
