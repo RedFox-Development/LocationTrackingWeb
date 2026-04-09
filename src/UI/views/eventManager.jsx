@@ -329,7 +329,7 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
                 </div>
               </div>
 
-              {event?.team_access_timeframe_start && event?.team_access_timeframe_end && (
+              {event?.timeframe_start && event?.timeframe_end && (
                 <>
                   <div className="qr-code-container">
                     <QRCode
