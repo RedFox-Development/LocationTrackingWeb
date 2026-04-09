@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@apollo/client/react'
-import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE } from '../api/graphql/event'
+import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE, UPDATE_TEAM_ACCESS_TIMEFRAME } from '../api/graphql/event'
 import { parseDataUri } from '../utils/dataUri'
 import { exportEventAsZip } from '../utils/exportData'
 import { getImageDataUri } from '../utils/dataUri'
@@ -20,6 +20,8 @@ const EventPage = (props) => {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [eventDeadlineDay, setEventDeadlineDay] = useState('')
+  const [teamAccessTimeframeStart, setTeamAccessTimeframeStart] = useState('')
+  const [teamAccessTimeframeEnd, setTeamAccessTimeframeEnd] = useState('')
   
   // Export state
   const [exportStartDate, setExportStartDate] = useState('')
@@ -31,6 +33,7 @@ const EventPage = (props) => {
   const [updateLogo] = useMutation(UPDATE_EVENT_LOGO)
   const [updateOrgName] = useMutation(UPDATE_ORGANIZATION_NAME)
   const [updateEventDeadline] = useMutation(UPDATE_EVENT_DEADLINE)
+  const [updateTeamAccessTimeframe] = useMutation(UPDATE_TEAM_ACCESS_TIMEFRAME)
 
   const { data: latestEventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
@@ -54,6 +57,9 @@ const EventPage = (props) => {
     return date.toISOString().split('T')[0]
   }
 
+  const toIsoStartOfDay = (value) => (value ? `${value}T00:00:00Z` : null)
+  const toIsoEndOfDay = (value) => (value ? `${value}T23:59:59Z` : null)
+
   // Load event from localStorage
   useEffect(() => {
     const currentEvent = localStorage.getItem('currentEvent')
@@ -65,7 +71,9 @@ const EventPage = (props) => {
       }
       setEvent(eventData)
       setOrgNameValue(eventData.organization_name || '')
-        setEventDeadlineDay(toDateInput(eventData.expiration_date))
+      setEventDeadlineDay(toDateInput(eventData.expiration_date))
+      setTeamAccessTimeframeStart(toDateInput(eventData.team_access_timeframe_start))
+      setTeamAccessTimeframeEnd(toDateInput(eventData.team_access_timeframe_end))
     } else {
       navigate('/login')
     }
@@ -95,7 +103,9 @@ const EventPage = (props) => {
       }
 
       localStorage.setItem('currentEvent', JSON.stringify(merged))
-        setEventDeadlineDay(toDateInput(merged.expiration_date))
+      setEventDeadlineDay(toDateInput(merged.expiration_date))
+      setTeamAccessTimeframeStart(toDateInput(merged.team_access_timeframe_start))
+      setTeamAccessTimeframeEnd(toDateInput(merged.team_access_timeframe_end))
       return merged
     })
   }, [latestEventData])
@@ -257,6 +267,46 @@ const EventPage = (props) => {
     }
   }
 
+  const handleSaveTeamAccessTimeframe = async () => {
+    if (!teamAccessTimeframeStart || !teamAccessTimeframeEnd) {
+      setError('Team access timeframe start and end dates are required')
+      return
+    }
+
+    if (new Date(teamAccessTimeframeStart) > new Date(teamAccessTimeframeEnd)) {
+      setError('Team access timeframe start must be on or before end')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const { data } = await updateTeamAccessTimeframe({
+        variables: {
+          eventId: event.id,
+          keycode: event.keycode,
+          startDate: toIsoStartOfDay(teamAccessTimeframeStart),
+          endDate: toIsoEndOfDay(teamAccessTimeframeEnd),
+        },
+      })
+
+      const updated = {
+        ...event,
+        team_access_timeframe_start: data.updateTeamAccessTimeframe.team_access_timeframe_start,
+        team_access_timeframe_end: data.updateTeamAccessTimeframe.team_access_timeframe_end,
+      }
+      setEvent(updated)
+      localStorage.setItem('currentEvent', JSON.stringify(updated))
+      setSuccess('Team access timeframe updated successfully!')
+    } catch (err) {
+      setError(err.message || 'Failed to update team access timeframe')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleExportData = async () => {
     setExporting(true)
     setError(null)
@@ -373,6 +423,40 @@ const EventPage = (props) => {
               </div>
             )}
           </div>
+        </div>
+
+        <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Team Access Timeframe</h4>
+        <div className="timeframe-section" style={{ marginBottom: '2rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+            Set the access window during which teams can submit location updates. All teams share the same timeframe.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div className="form-group">
+              <label>Access Start Date</label>
+              <input
+                type="date"
+                value={teamAccessTimeframeStart}
+                onChange={(e) => setTeamAccessTimeframeStart(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className="form-group">
+              <label>Access End Date</label>
+              <input
+                type="date"
+                value={teamAccessTimeframeEnd}
+                onChange={(e) => setTeamAccessTimeframeEnd(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleSaveTeamAccessTimeframe}
+            className="btn-secondary"
+            disabled={loading}
+          >
+            {loading ? 'Saving...' : 'Save Team Access Timeframe'}
+          </button>
         </div>
 
         <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Images</h4>
