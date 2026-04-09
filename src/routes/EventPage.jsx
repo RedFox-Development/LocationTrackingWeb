@@ -72,8 +72,8 @@ const EventPage = (props) => {
       setEvent(eventData)
       setOrgNameValue(eventData.organization_name || '')
       setEventDeadlineDay(toDateInput(eventData.expiration_date))
-      setTeamAccessTimeframeStart(toDateInput(eventData.team_access_timeframe_start))
-      setTeamAccessTimeframeEnd(toDateInput(eventData.team_access_timeframe_end))
+      setTeamAccessTimeframeStart(toDateInput(eventData.timeframe_start))
+      setTeamAccessTimeframeEnd(toDateInput(eventData.timeframe_end))
     } else {
       navigate('/login')
     }
@@ -104,8 +104,8 @@ const EventPage = (props) => {
 
       localStorage.setItem('currentEvent', JSON.stringify(merged))
       setEventDeadlineDay(toDateInput(merged.expiration_date))
-      setTeamAccessTimeframeStart(toDateInput(merged.team_access_timeframe_start))
-      setTeamAccessTimeframeEnd(toDateInput(merged.team_access_timeframe_end))
+      setTeamAccessTimeframeStart(toDateInput(merged.timeframe_start))
+      setTeamAccessTimeframeEnd(toDateInput(merged.timeframe_end))
       return merged
     })
   }, [latestEventData])
@@ -255,7 +255,6 @@ const EventPage = (props) => {
       const updated = {
         ...event,
         expiration_date: data.updateEventDeadline.expiration_date,
-        end_date: data.updateEventDeadline.end_date,
       }
       setEvent(updated)
       localStorage.setItem('currentEvent', JSON.stringify(updated))
@@ -294,8 +293,8 @@ const EventPage = (props) => {
 
       const updated = {
         ...event,
-        team_access_timeframe_start: data.updateTeamAccessTimeframe.team_access_timeframe_start,
-        team_access_timeframe_end: data.updateTeamAccessTimeframe.team_access_timeframe_end,
+        team_access_timeframe_start: data.updateTeamAccessTimeframe.timeframe_start,
+        team_access_timeframe_end: data.updateTeamAccessTimeframe.timeframe_end,
       }
       setEvent(updated)
       localStorage.setItem('currentEvent', JSON.stringify(updated))

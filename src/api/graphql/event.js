@@ -16,10 +16,8 @@ export const GET_EVENT = gql`
       organization_name
       expiration_date
       timezone
-      start_date
-      end_date
-      team_access_timeframe_start
-      team_access_timeframe_end
+      timeframe_start
+      timeframe_end
       geofence_data
       image_data
       image_mime_type
@@ -38,8 +36,6 @@ export const EVENT_INFO = gql`
       logo_mime_type
       organization_name
       timezone
-      start_date
-      end_date
     }
   }
 `;
@@ -54,8 +50,6 @@ export const CREATE_EVENT = gql`
     $logoMimeType: String
     $expirationDate: DateTime
     $timezone: String
-    $startDate: String
-    $endDate: String
   ) {
     createEvent(
       name: $name
@@ -66,8 +60,6 @@ export const CREATE_EVENT = gql`
       logo_mime_type: $logoMimeType
       expiration_date: $expirationDate
       timezone: $timezone
-      start_date: $startDate
-      end_date: $endDate
     ) {
       id
       name
@@ -77,8 +69,6 @@ export const CREATE_EVENT = gql`
       organization_name
       expiration_date
       timezone
-      start_date
-      end_date
       image_data
       image_mime_type
       logo_data
@@ -215,10 +205,8 @@ export const UPDATE_TEAM_ACCESS_TIMEFRAME = gql`
       name
       expiration_date
       timezone
-      start_date
-      end_date
-      team_access_timeframe_start
-      team_access_timeframe_end
+      timeframe_start
+      timeframe_end
     }
   }
 `
