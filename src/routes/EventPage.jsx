@@ -286,8 +286,8 @@ const EventPage = (props) => {
         variables: {
           eventId: event.id,
           keycode: event.keycode,
-          startDate: toIsoStartOfDay(teamAccessTimeframeStart),
-          endDate: toIsoEndOfDay(teamAccessTimeframeEnd),
+          timeframeStart: toIsoStartOfDay(teamAccessTimeframeStart),
+          timeframeEnd: toIsoEndOfDay(teamAccessTimeframeEnd),
         },
       })
 

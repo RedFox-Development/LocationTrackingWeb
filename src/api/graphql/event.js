@@ -194,12 +194,12 @@ export const UPDATE_EVENT_TIMEFRAME = gql`
 `
 
 export const UPDATE_TEAM_ACCESS_TIMEFRAME = gql`
-  mutation UpdateTeamAccessTimeframe($eventId: Int!, $keycode: String!, $startDate: DateTime, $endDate: DateTime) {
+  mutation UpdateTeamAccessTimeframe($eventId: Int!, $keycode: String!, $timeframeStart: DateTime, $timeframeEnd: DateTime) {
     updateTeamAccessTimeframe(
       event_id: $eventId
       keycode: $keycode
-      team_access_timeframe_start: $startDate
-      team_access_timeframe_end: $endDate
+      timeframe_start: $timeframeStart
+      timeframe_end: $timeframeEnd
     ) {
       id
       name
