@@ -19,6 +19,7 @@ export const GET_EVENT = gql`
       timeframe_start
       timeframe_end
       update_frequency
+      api_url
       geofence_data
       image_data
       image_mime_type
@@ -52,6 +53,7 @@ export const CREATE_EVENT = gql`
     $expirationDate: DateTime
     $timezone: String
     $updateFrequency: Int
+    $apiUrl: String
   ) {
     createEvent(
       name: $name
@@ -63,11 +65,13 @@ export const CREATE_EVENT = gql`
       expiration_date: $expirationDate
       timezone: $timezone
       update_frequency: $updateFrequency
+      api_url: $apiUrl
     ) {
       id
       name
       keycode
       view_keycode
+      api_url
       access_level
       organization_name
       expiration_date
@@ -311,6 +315,20 @@ export const UPDATE_EVENT_UPDATE_FREQUENCY = gql`
       timezone
       timeframe_start
       timeframe_end
+    }
+  }
+`
+
+export const UPDATE_EVENT_API_URL = gql`
+  mutation UpdateEventApiUrl($eventId: Int!, $keycode: String!, $apiUrl: String!) {
+    updateEventApiUrl(
+      event_id: $eventId
+      keycode: $keycode
+      api_url: $apiUrl
+    ) {
+      id
+      name
+      api_url
     }
   }
 `
