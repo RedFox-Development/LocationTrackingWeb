@@ -345,8 +345,11 @@ function MapView({ event, teams }) {
       const results = await Promise.all(locationsPromises)
       console.log('[MapView] Got results for', results.length, 'teams')
 
-      const locations = {}
-      const breaches = {}
+      // Start with existing cached data - this preserves teams that didn't get fresh data this fetch
+      const locations = { ...teamLocationsRef.current }
+      const breaches = { ...geofenceBreachesRef.current }
+      let hasLocationsChanged = false
+      let hasBreachesChanged = false
 
       results.forEach((result) => {
         teamFetchTimestampsRef.current[result.teamId] = now
@@ -360,84 +363,61 @@ function MapView({ event, teams }) {
           const filteredUpdates = applyMedianFilter(sortedUpdates)
           const latestUpdate = filteredUpdates[filteredUpdates.length - 1]
 
-          locations[result.teamId] = {
+          const newLocationData = {
             latest: latestUpdate,
             history: filteredUpdates,
             teamName: result.teamName,
             teamColor: result.teamColor,
           }
 
+          // Check if this team's data actually changed
+          const prevEntry = locations[result.teamId]
+          const prevLatest = prevEntry?.latest
+          if (
+            !prevEntry ||
+            !prevLatest ||
+            prevEntry.teamName !== result.teamName ||
+            prevEntry.teamColor !== result.teamColor ||
+            prevEntry.history?.length !== filteredUpdates.length ||
+            prevLatest.lat !== latestUpdate.lat ||
+            prevLatest.lon !== latestUpdate.lon ||
+            normalizeTimestamp(prevLatest.timestamp) !== normalizeTimestamp(latestUpdate.timestamp)
+          ) {
+            locations[result.teamId] = newLocationData
+            hasLocationsChanged = true
+          }
+
           if (activeGeofence && activeGeofence.length >= 3) {
             const isInside = isPointInPolygon(latestUpdate.lat, latestUpdate.lon, activeGeofence)
 
             if (!isInside) {
-              breaches[result.teamId] = {
+              const newBreach = {
                 teamName: result.teamName,
                 lat: latestUpdate.lat,
                 lon: latestUpdate.lon,
                 timestamp: latestUpdate.timestamp,
               }
+              const prevBreach = breaches[result.teamId]
+              if (
+                !prevBreach ||
+                prevBreach.teamName !== result.teamName ||
+                prevBreach.lat !== latestUpdate.lat ||
+                prevBreach.lon !== latestUpdate.lon ||
+                normalizeTimestamp(prevBreach.timestamp) !== normalizeTimestamp(latestUpdate.timestamp)
+              ) {
+                breaches[result.teamId] = newBreach
+                hasBreachesChanged = true
+              }
+            } else if (breaches[result.teamId]) {
+              // Team is now inside, remove the breach
+              delete breaches[result.teamId]
+              hasBreachesChanged = true
             }
           }
         }
       })
 
-      const hasLocationsChanged = (() => {
-        const previous = teamLocationsRef.current
-        const previousKeys = Object.keys(previous)
-        const nextKeys = Object.keys(locations)
-
-        if (previousKeys.length !== nextKeys.length) return true
-
-        for (const teamId of nextKeys) {
-          const prevEntry = previous[teamId]
-          const nextEntry = locations[teamId]
-          if (!prevEntry || !nextEntry) return true
-
-          const prevLatest = prevEntry.latest
-          const nextLatest = nextEntry.latest
-          if (!prevLatest || !nextLatest) return true
-
-          if (
-            prevEntry.teamName !== nextEntry.teamName ||
-            prevEntry.teamColor !== nextEntry.teamColor ||
-            prevEntry.history?.length !== nextEntry.history?.length ||
-            prevLatest.lat !== nextLatest.lat ||
-            prevLatest.lon !== nextLatest.lon ||
-            normalizeTimestamp(prevLatest.timestamp) !== normalizeTimestamp(nextLatest.timestamp)
-          ) {
-            return true
-          }
-        }
-
-        return false
-      })()
-
-      const hasBreachesChanged = (() => {
-        const previous = geofenceBreachesRef.current
-        const previousKeys = Object.keys(previous)
-        const nextKeys = Object.keys(breaches)
-
-        if (previousKeys.length !== nextKeys.length) return true
-
-        for (const teamId of nextKeys) {
-          const prevBreach = previous[teamId]
-          const nextBreach = breaches[teamId]
-          if (!prevBreach || !nextBreach) return true
-
-          if (
-            prevBreach.teamName !== nextBreach.teamName ||
-            prevBreach.lat !== nextBreach.lat ||
-            prevBreach.lon !== nextBreach.lon ||
-            normalizeTimestamp(prevBreach.timestamp) !== normalizeTimestamp(nextBreach.timestamp)
-          ) {
-            return true
-          }
-        }
-
-        return false
-      })()
-
+      // Update refs only if something actually changed
       if (hasLocationsChanged) {
         console.log('[MapView] Locations changed, updating ref')
         teamLocationsRef.current = locations
