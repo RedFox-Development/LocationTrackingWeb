@@ -67,6 +67,7 @@ This is part of a multi-project setup:
   - Auto-generated keycode for authentication
   - Image upload / link setup
   - Event / organization logo upload
+  - **Configurable location update frequency** (1-60 seconds, default 10s)
   - Event login with name + keycode
   - Event data persistence in localStorage
 
@@ -79,12 +80,24 @@ This is part of a multi-project setup:
   - Event logo embedded in QR codes
   - No database credentials in QR codes (API-based security)
 
-- **Track Teams on Map**
-  - Team filtering and selection
-  - Real-time location updates with configurable refresh intervals
-  - Location history tracking toggle
-  - Team color coding and labels
-  - Map placeholder ready for integration
+- **Manage Event**
+  - **Event Configuration** (3-column grid layout)
+    - Event name display
+    - Event expiration day adjustment
+    - Organization name editing
+  - **Team Access Timeframe** (precise date + time control)
+    - Start date and end date selection
+    - Start time (HH:MM) with automatic :00 seconds
+    - End time (HH:MM) with automatic :59 seconds
+    - Narrow team access windows for more granular control
+  - **Location Update Frequency** (1-60 second intervals)
+    - Dropdown selector with common intervals
+    - Modify frequency after event creation
+  - **Event Images** (2-column grid layout)
+    - Event image management
+    - Organization logo management
+  - **Geofence and Waypoint** editors
+  - **Event data export** with date range filtering (ZIP format)
 
 - **Map integration**
   - Leaflet via react-leaflet
@@ -92,6 +105,7 @@ This is part of a multi-project setup:
   - Draw location history trails
   - Add markers with team labels
   - Near-realtime updates visualized
+  - **Automatic data point limiting** based on configured update frequency
 
 - **Event geofencing**
   - Drawing the boundaries
@@ -123,9 +137,7 @@ QR codes contain JSON data for the Flutter app:
 {
   "teamName": "Team Alpha",
   "event": "Summer Challenge 2026",
-  "apiUrl": "https://your-project.vercel.app/api",
-  "expirationDate": 1776286799999,
-  "timezone": "UTC"
+  "apiUrl": "https://your-project.vercel.app/api"
 }
 ```
 
