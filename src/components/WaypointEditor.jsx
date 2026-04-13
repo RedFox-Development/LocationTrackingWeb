@@ -217,7 +217,7 @@ function WaypointEditor({ event }) {
 
   return (
     <div className="waypoint-editor">
-      <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Waypoints</h4>
+      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Waypoints</h3>
 
       {error && (
         <div className="error-message" style={{ marginBottom: '1rem' }}>

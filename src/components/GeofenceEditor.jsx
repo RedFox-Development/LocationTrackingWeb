@@ -301,7 +301,7 @@ function GeofenceEditor({ event, onGeofenceChange }) {
 
   return (
     <div className="geofence-editor">
-      <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Geofence</h4>
+      <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Geofence</h3>
       
       {apiError && (
         <div className="error-message" style={{ 

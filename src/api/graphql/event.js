@@ -243,7 +243,6 @@ export const EXPORT_EVENT_DATA = gql`
         id
         name
         color
-        expiration_date
         locations {
           id
           lat
