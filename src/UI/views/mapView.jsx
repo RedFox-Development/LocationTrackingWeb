@@ -120,7 +120,7 @@ const applyMedianFilter = (sortedUpdates, windowSize = 7, maxDistMeters = 300) =
   return filtered.length > 0 ? filtered : sortedUpdates
 }
 
-const MAX_HISTORY_DOTS = 900
+const MAX_HISTORY_DOTS = 12800
 
 function MapView({ event, teams }) {
   const apolloClient = useApolloClient()
@@ -306,7 +306,7 @@ function MapView({ event, teams }) {
             variables: {
               event: event.name,
               team: team.name,
-              limit: 2400,
+              limit: Math.round(3600/(event.update_frequency/1000)*1.5),
             },
             fetchPolicy: 'network-only',
           })

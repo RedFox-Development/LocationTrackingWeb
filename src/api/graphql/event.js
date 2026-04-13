@@ -18,6 +18,7 @@ export const GET_EVENT = gql`
       timezone
       timeframe_start
       timeframe_end
+      update_frequency
       geofence_data
       image_data
       image_mime_type
@@ -294,6 +295,23 @@ export const DELETE_EVENT_GEOFENCE = gql`
       access_level
       organization_name
       geofence_data
+    }
+  }
+`
+
+export const UPDATE_EVENT_UPDATE_FREQUENCY = gql`
+  mutation UpdateEventUpdateFrequency($eventId: Int!, $keycode: String!, $updateFrequency: Int!) {
+    updateEventUpdateFrequency(
+      event_id: $eventId
+      keycode: $keycode
+      update_frequency: $updateFrequency
+    ) {
+      id
+      name
+      update_frequency
+      timezone
+      timeframe_start
+      timeframe_end
     }
   }
 `

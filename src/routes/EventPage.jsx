@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@apollo/client/react'
-import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE, UPDATE_TEAM_ACCESS_TIMEFRAME } from '../api/graphql/event'
+import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE, UPDATE_TEAM_ACCESS_TIMEFRAME, UPDATE_EVENT_UPDATE_FREQUENCY } from '../api/graphql/event'
 import { parseDataUri } from '../utils/dataUri'
 import { exportEventAsZip } from '../utils/exportData'
 import { getImageDataUri } from '../utils/dataUri'
@@ -22,6 +22,7 @@ const EventPage = (props) => {
   const [eventDeadlineDay, setEventDeadlineDay] = useState('')
   const [teamAccessTimeframeStart, setTeamAccessTimeframeStart] = useState('')
   const [teamAccessTimeframeEnd, setTeamAccessTimeframeEnd] = useState('')
+  const [updateFrequency, setUpdateFrequency] = useState('10')
   
   // Export state
   const [exportStartDate, setExportStartDate] = useState('')
@@ -34,6 +35,7 @@ const EventPage = (props) => {
   const [updateOrgName] = useMutation(UPDATE_ORGANIZATION_NAME)
   const [updateEventDeadline] = useMutation(UPDATE_EVENT_DEADLINE)
   const [updateTeamAccessTimeframe] = useMutation(UPDATE_TEAM_ACCESS_TIMEFRAME)
+  const [updateEventUpdateFrequency] = useMutation(UPDATE_EVENT_UPDATE_FREQUENCY)
 
   const { data: latestEventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
@@ -74,6 +76,7 @@ const EventPage = (props) => {
       setEventDeadlineDay(toDateInput(eventData.expiration_date))
       setTeamAccessTimeframeStart(toDateInput(eventData.timeframe_start))
       setTeamAccessTimeframeEnd(toDateInput(eventData.timeframe_end))
+      setUpdateFrequency(eventData.update_frequency ? String(eventData.update_frequency / 1000) : '10')
     } else {
       navigate('/login')
     }
@@ -97,7 +100,10 @@ const EventPage = (props) => {
         current.image_data === merged.image_data &&
         current.image_mime_type === merged.image_mime_type &&
         current.logo_data === merged.logo_data &&
-        current.logo_mime_type === merged.logo_mime_type
+        current.logo_mime_type === merged.logo_mime_type &&
+        current.update_frequency === merged.update_frequency &&
+        current.timeframe_start === merged.timeframe_start &&
+        current.timeframe_end === merged.timeframe_end
       ) {
         return current
       }
@@ -106,6 +112,7 @@ const EventPage = (props) => {
       setEventDeadlineDay(toDateInput(merged.expiration_date))
       setTeamAccessTimeframeStart(toDateInput(merged.timeframe_start))
       setTeamAccessTimeframeEnd(toDateInput(merged.timeframe_end))
+      setUpdateFrequency(merged.update_frequency ? String(merged.update_frequency / 1000) : '10')
       return merged
     })
   }, [latestEventData])
@@ -306,6 +313,45 @@ const EventPage = (props) => {
     }
   }
 
+  const handleSaveUpdateFrequency = async () => {
+    if (!updateFrequency) {
+      setError('Update frequency is required')
+      return
+    }
+
+    const frequencySeconds = parseInt(updateFrequency, 10)
+    if (isNaN(frequencySeconds) || frequencySeconds < 1 || frequencySeconds > 60) {
+      setError('Update frequency must be between 1 and 60 seconds')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const { data } = await updateEventUpdateFrequency({
+        variables: {
+          eventId: event.id,
+          keycode: event.keycode,
+          updateFrequency: frequencySeconds * 1000, // Convert to milliseconds
+        },
+      })
+
+      const updated = {
+        ...event,
+        update_frequency: data.updateEventUpdateFrequency.update_frequency,
+      }
+      setEvent(updated)
+      localStorage.setItem('currentEvent', JSON.stringify(updated))
+      setSuccess('Location update frequency updated successfully!')
+    } catch (err) {
+      setError(err.message || 'Failed to update location update frequency')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleExportData = async () => {
     setExporting(true)
     setError(null)
@@ -456,6 +502,42 @@ const EventPage = (props) => {
           >
             {loading ? 'Saving...' : 'Save Team Access Timeframe'}
           </button>
+        </div>
+
+        <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Images</h4>
+        
+        <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Location Update Frequency</h4>
+        <div className="frequency-section" style={{ marginBottom: '2rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+            Set how frequently teams should send location updates (in seconds). Lower values provide more frequent updates but consume more battery.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
+            <div className="form-group" style={{ flex: 1, maxWidth: '200px' }}>
+              <label>Update Frequency (seconds)</label>
+              <select
+                value={updateFrequency}
+                onChange={(e) => setUpdateFrequency(e.target.value)}
+                disabled={loading}
+              >
+                <option value="1">1 second</option>
+                <option value="3">3 seconds</option>
+                <option value="5">5 seconds</option>
+                <option value="10">10 seconds</option>
+                <option value="15">15 seconds</option>
+                <option value="20">20 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="60">60 seconds</option>
+              </select>
+            </div>
+            <button
+              onClick={handleSaveUpdateFrequency}
+              className="btn-secondary"
+              disabled={loading}
+              style={{ padding: '0.5rem 1rem' }}
+            >
+              {loading ? 'Saving...' : 'Save Frequency'}
+            </button>
+          </div>
         </div>
 
         <h4 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Event Images</h4>
