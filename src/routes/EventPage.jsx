@@ -626,30 +626,35 @@ const EventPage = (props) => {
 
         {!props.lockSomeFeatures && <>
           <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Export Event Data</h3>
-          <div className="export-section">
-            <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+          <div className="export-section" style={{ display: 'grid', gridTemplateColumns: '30% 30% 30%', gap: '0.5rem 1rem' }}>
+            <p style={{ gridArea: '1 / 1 / 1 / 3', color: 'var(--text-secondary)', fontSize: '1rem' }}>
               Download a complete archive of your event data including teams, locations (GeoJSON & CSV),
               images, and metadata in a single ZIP file.
             </p>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'end', flexWrap: 'wrap' }}>
-              <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-                <label>Start Date (optional)</label>
-                <input
-                  type="date"
-                  value={exportStartDate}
-                  onChange={(e) => setExportStartDate(e.target.value)}
-                  disabled={exporting}
-                />
-              </div>
-              <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-                <label>End Date (optional)</label>
-                <input
-                  type="date"
-                  value={exportEndDate}
-                  onChange={(e) => setExportEndDate(e.target.value)}
-                  disabled={exporting}
-                />
-              </div>
+            {!exportStartDate && !exportEndDate && (<p style={{ gridArea: '2 / 1 / 2 / 3', color: 'var(--text-secondary)', fontSize: '1rem', textDecoration: 'var(--error-color) solid underline 2px' }}>
+              If you leave dates empty, all location data will be exported
+            </p>)}
+            <div className="form-group" style={{ flex: 1, gridArea: '3 / 1 / 3 / 1', marginTop: '1rem' }}>
+              <label >Start Date (optional)</label>
+              <input
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                disabled={exporting}
+                style={{ maxWidth: '55%'}}
+              />
+            </div>
+            <div className="form-group" style={{ flex: 1, gridArea: '3 / 2 / 3 / 2', marginTop: '1rem' }}>
+              <label>End Date (optional)</label>
+              <input
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                disabled={exporting}
+                style={{ maxWidth: '55%'}}
+              />
+            </div>
+            <div className="form-group" style={{ flex: 1, maxWidth: '55%', gridArea: '3 / 3 / 3 / 3', marginTop: '2.5rem' }}>
               <button
                 onClick={handleExportData}
                 className="btn-primary"
@@ -659,11 +664,6 @@ const EventPage = (props) => {
                 {exporting ? 'Exporting...' : '📦 Export event data as a ZIP file'}
               </button>
             </div>
-            {!exportStartDate && !exportEndDate && (
-              <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-tertiary)' }}>
-                Leave dates empty to export all location data
-              </p>
-            )}
           </div>
           </>
         }
