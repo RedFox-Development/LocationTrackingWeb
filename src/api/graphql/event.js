@@ -50,6 +50,7 @@ export const CREATE_EVENT = gql`
     $logoMimeType: String
     $expirationDate: DateTime
     $timezone: String
+    $updateFrequency: Int
   ) {
     createEvent(
       name: $name
@@ -60,6 +61,7 @@ export const CREATE_EVENT = gql`
       logo_mime_type: $logoMimeType
       expiration_date: $expirationDate
       timezone: $timezone
+      update_frequency: $updateFrequency
     ) {
       id
       name
@@ -69,6 +71,7 @@ export const CREATE_EVENT = gql`
       organization_name
       expiration_date
       timezone
+      update_frequency
       image_data
       image_mime_type
       logo_data

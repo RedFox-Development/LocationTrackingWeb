@@ -42,6 +42,7 @@ function EventSetup({ onEventCreated }) {
     oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1)
     return oneMonthFromNow.toISOString().split('T')[0]
   })
+  const [updateFrequency, setUpdateFrequency] = useState(10) // Default 10 seconds
   const [eventImage, setEventImage] = useState('')
   const [eventLogo, setEventLogo] = useState('')
   const [error, setError] = useState(null)
@@ -114,7 +115,8 @@ function EventSetup({ onEventCreated }) {
           imageMimeType: imageInfo?.mimeType || null,
           logoData: logoInfo?.base64Data || null,
           logoMimeType: logoInfo?.mimeType || null,
-          expirationDate: eventExpiration ? `${eventExpiration}T23:59:59Z` : null
+          expirationDate: eventExpiration ? `${eventExpiration}T23:59:59Z` : null,
+          updateFrequency: updateFrequency * 1000 // Convert seconds to milliseconds
         }
       })
     } catch (err) {
@@ -178,6 +180,24 @@ function EventSetup({ onEventCreated }) {
               placeholder="Enter organization name (optional)"
               disabled={loading}
             />
+          </div>
+
+          <div className="form-group">
+            <label>Location Update Frequency (seconds)</label>
+            <select
+              value={updateFrequency}
+              onChange={(e) => setUpdateFrequency(Number(e.target.value))}
+              disabled={loading}
+            >
+              <option value={1}>1 second</option>
+              <option value={3}>3 seconds</option>
+              <option value={5}>5 seconds</option>
+              <option value={10}>10 seconds (Default)</option>
+              <option value={15}>15 seconds</option>
+              <option value={20}>20 seconds</option>
+              <option value={30}>30 seconds</option>
+              <option value={60}>60 seconds</option>
+            </select>
           </div>
 
           <div className="form-group">
