@@ -142,6 +142,8 @@ function MapView({ event, teams }) {
   const geofenceRef = useRef(null)
   const teamLocationsRef = useRef({})
   const geofenceBreachesRef = useRef({})
+  const teamFetchTimestampsRef = useRef({})
+  const isFetchingRef = useRef(false)
 
   const teamLocations = teamLocationsRef.current
   const geofenceBreaches = geofenceBreachesRef.current
@@ -294,9 +296,21 @@ function MapView({ event, teams }) {
   }
 
   const fetchLocationData = async () => {
-    if (!event || !teams || teams.length === 0) return
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      console.log('[MapView] Fetch already in progress, skipping this interval')
+      return
+    }
 
+    if (!event || !teams || teams.length === 0) {
+      console.log('[MapView] fetchLocationData skipped:', { event: !!event, teams: !!teams, teamsLength: teams?.length })
+      return
+    }
+
+    isFetchingRef.current = true
     const activeGeofence = geofenceRef.current
+    const now = Date.now()
+    console.log('[MapView] fetchLocationData started at', new Date(now).toISOString())
 
     try {
       const locationsPromises = teams.map(async (team) => {
@@ -329,11 +343,14 @@ function MapView({ event, teams }) {
       })
 
       const results = await Promise.all(locationsPromises)
+      console.log('[MapView] Got results for', results.length, 'teams')
 
       const locations = {}
       const breaches = {}
 
       results.forEach((result) => {
+        teamFetchTimestampsRef.current[result.teamId] = now
+        console.log(`[MapView] Team ${result.teamName} has ${result.updates?.length || 0} location updates`)
         if (result.updates && result.updates.length > 0) {
           const sortedUpdates = [...result.updates].sort((a, b) => {
             const timeA = new Date(normalizeTimestamp(a.timestamp)).getTime()
@@ -422,14 +439,17 @@ function MapView({ event, teams }) {
       })()
 
       if (hasLocationsChanged) {
+        console.log('[MapView] Locations changed, updating ref')
         teamLocationsRef.current = locations
       }
 
       if (hasBreachesChanged) {
+        console.log('[MapView] Breaches changed, updating ref')
         geofenceBreachesRef.current = breaches
       }
 
       if (hasLocationsChanged || hasBreachesChanged) {
+        console.log('[MapView] Data changed, updating render version')
         setLocationRenderVersion((version) => version + 1)
       }
 
@@ -439,7 +459,10 @@ function MapView({ event, teams }) {
         setWaypointVisits([])
       }
     } catch (error) {
-      console.error('Error fetching location data:', error)
+      console.error('[MapView] Error in fetchLocationData:', error)
+    } finally {
+      isFetchingRef.current = false
+      console.log('[MapView] fetchLocationData completed')
     }
   }
 
