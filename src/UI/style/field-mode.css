@@ -26,12 +26,12 @@
   z-index: 1000;
 }
 
-/* Map Container - 60% height */
+/* Map Container - 50% height (increased from 60% to give more room for team list) */
 .field-map-container {
-  flex: 0 0 60%;
+  flex: 0 0 50%;
   position: relative;
   overflow: hidden;
-  min-height: 300px;
+  min-height: 250px;
   background: #1a1a1a;
   border-bottom: 1px solid #333;
 }
@@ -242,15 +242,15 @@
   transform: scale(0.95);
 }
 
-/* Teams Container - Variable height */
+/* Teams Container - Variable height (increased from 40% to 50% for better scrolling) */
 .field-teams-container {
   flex: 1;
   overflow-y: auto;
   background: #0a0a0a;
   border-bottom: 1px solid #333;
-  padding: 6px;
+  padding: 8px;
   -webkit-overflow-scrolling: touch;
-  min-height: 60px;
+  min-height: 100px;
 }
 
 /* Team Status Bar */

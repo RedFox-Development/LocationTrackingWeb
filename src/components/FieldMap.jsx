@@ -25,6 +25,40 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
     }
   }, [])
 
+  // Center map on geofences if available
+  useEffect(() => {
+    if (!mapRef.current || !geofences || geofences.length === 0) return
+
+    // Calculate bounding box for all geofences
+    let minLat = Infinity, maxLat = -Infinity
+    let minLon = Infinity, maxLon = -Infinity
+    let hasValidGeofence = false
+
+    geofences.forEach((fence) => {
+      if (fence.lat && fence.lon && fence.radius) {
+        hasValidGeofence = true
+        // Earth's radius in meters
+        const earthRadius = 6371000
+        // Radius in degrees
+        const radiusInDegrees = (fence.radius / earthRadius) * (180 / Math.PI)
+
+        minLat = Math.min(minLat, fence.lat - radiusInDegrees)
+        maxLat = Math.max(maxLat, fence.lat + radiusInDegrees)
+        minLon = Math.min(minLon, fence.lon - radiusInDegrees)
+        maxLon = Math.max(maxLon, fence.lon + radiusInDegrees)
+      }
+    })
+
+    // If we have valid geofences, fit map to bounds
+    if (hasValidGeofence && window.L) {
+      const bounds = window.L.latLngBounds(
+        [minLat, minLon],
+        [maxLat, maxLon]
+      )
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
+    }
+  }, [geofences])
+
   // Fetch team positions from API (last 30 minutes)
   useEffect(() => {
     const fetchTeamPositions = async () => {

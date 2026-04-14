@@ -47,7 +47,7 @@ function FieldModePage() {
   const { data: teamsData, loading: teamsLoading } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id },
     skip: !currentEvent?.id,
-    pollInterval: 5000, // Poll every 5 seconds for real-time updates
+    pollInterval: 30000, // Poll every 30 seconds for real-time updates (reduced from 5s to conserve battery)
     fetchPolicy: 'network-only',
   })
 
