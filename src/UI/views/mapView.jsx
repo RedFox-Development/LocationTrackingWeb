@@ -312,6 +312,11 @@ function MapView({ event, teams }) {
     const now = Date.now()
     console.log('[MapView] fetchLocationData started at', new Date(now).toISOString())
 
+    // Calculate limit based on update frequency with safe fallback
+    const updateFrequencyMs = event?.update_frequency || 10000 // Default 10 seconds if not set
+    const calculatedLimit = Math.round(3600 / (updateFrequencyMs / 1000) * 1.5)
+    console.log('[MapView] Using update frequency:', updateFrequencyMs, 'ms, calculated limit:', calculatedLimit)
+
     try {
       const locationsPromises = teams.map(async (team) => {
         try {
@@ -320,7 +325,7 @@ function MapView({ event, teams }) {
             variables: {
               event: event.name,
               team: team.name,
-              limit: Math.round(3600/(event.update_frequency/1000)*1.5),
+              limit: calculatedLimit,
             },
             fetchPolicy: 'network-only',
           })
