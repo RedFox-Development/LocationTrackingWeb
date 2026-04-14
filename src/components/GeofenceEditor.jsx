@@ -352,7 +352,11 @@ function GeofenceEditor({ event, onGeofenceChange }) {
 
         {geofence && geofence.length > 0 && (
           <button 
-            onClick={handleGeofenceDelete} 
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete the geofence? This action cannot be undone.')) {
+                handleGeofenceDelete()
+              }
+            }} 
             className="btn-secondary"
             style={{ marginLeft: '0.5rem', backgroundColor: '#ff6b6b' }}
             disabled={apiLoading}

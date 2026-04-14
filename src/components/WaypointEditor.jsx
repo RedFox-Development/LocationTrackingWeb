@@ -394,7 +394,11 @@ function WaypointEditor({ event }) {
                         <button type="button" className="btn-secondary" onClick={() => handleStartEdit(waypoint)} disabled={isSaving}>
                           Edit
                         </button>
-                        <button type="button" className="btn-secondary" onClick={() => handleDeleteWaypoint(waypoint.id)} disabled={isSaving}>
+                        <button type="button" className="btn-secondary" onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete waypoint "${waypoint.name}"? This action cannot be undone.`)) {
+                            handleDeleteWaypoint(waypoint.id)
+                          }
+                        }} disabled={isSaving}>
                           Delete
                         </button>
                       </div>

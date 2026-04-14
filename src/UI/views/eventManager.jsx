@@ -301,7 +301,10 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeleteTeam(team.id)
+                            const teamName = team.name
+                            if (window.confirm(`Are you sure you want to delete team "${teamName}"? This action cannot be undone.`)) {
+                              handleDeleteTeam(team.id)
+                            }
                           }}
                           className="btn-delete"
                           disabled={loading}
