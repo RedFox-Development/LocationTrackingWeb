@@ -43,7 +43,7 @@ function EventSetup({ onEventCreated }) {
     return oneMonthFromNow.toISOString().split('T')[0]
   })
   const [updateFrequency, setUpdateFrequency] = useState(10) // Default 10 seconds
-  const [apiUrl, setApiUrl] = useState(() => import.meta.env.VITE_API_URL || '')
+  const [apiUrl, setApiUrl] = useState(() => '')
   const [eventImage, setEventImage] = useState('')
   const [eventLogo, setEventLogo] = useState('')
   const [error, setError] = useState(null)

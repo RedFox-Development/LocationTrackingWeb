@@ -65,7 +65,8 @@ function WaypointEditor({ event }) {
   const [editIsRequired, setEditIsRequired] = useState(false)
 
   const { data, loading, error, refetch } = useQuery(GET_WAYPOINTS, {
-    variables: { eventId: event.id },
+    variables: { eventId: event?.id },
+    skip: !event?.id,
     fetchPolicy: 'network-only',
   })
 
@@ -132,23 +133,27 @@ function WaypointEditor({ event }) {
       return
     }
 
-    await Promise.all(
-      validDrafts.map((draft) =>
-        createWaypoint({
-          variables: {
-            eventId: event.id,
-            keycode: event.keycode,
-            name: draft.name.trim(),
-            lat: draft.lat,
-            lon: draft.lon,
-            isRequired: Boolean(draft.is_required),
-          },
-        })
+    try {
+      await Promise.all(
+        validDrafts.map((draft) =>
+          createWaypoint({
+            variables: {
+              eventId: event?.id,
+              keycode: event?.keycode,
+              name: draft.name.trim(),
+              lat: draft.lat,
+              lon: draft.lon,
+              isRequired: Boolean(draft.is_required),
+            },
+          })
+        )
       )
-    )
 
-    await refetch()
-    clearDrafts()
+      await refetch()
+      clearDrafts()
+    } catch (err) {
+      console.error('Failed to save waypoint drafts:', err)
+    }
   }
 
   const handleWaypointDragEnd = async (waypoint, dragEvent) => {
@@ -157,16 +162,20 @@ function WaypointEditor({ event }) {
       return
     }
     const position = marker.getLatLng()
-    await updateWaypoint({
-      variables: {
-        waypointId: waypoint.id,
-        eventId: event.id,
-        keycode: event.keycode,
-        lat: position.lat,
-        lon: position.lng,
-      },
-    })
-    await refetch()
+    try {
+      await updateWaypoint({
+        variables: {
+          waypointId: waypoint?.id,
+          eventId: event?.id,
+          keycode: event?.keycode,
+          lat: position.lat,
+          lon: position.lng,
+        },
+      })
+      await refetch()
+    } catch (err) {
+      console.error('Failed to update waypoint position:', err)
+    }
   }
 
   const handleStartEdit = (waypoint) => {
@@ -186,33 +195,52 @@ function WaypointEditor({ event }) {
       return
     }
 
-    await updateWaypoint({
-      variables: {
-        waypointId,
-        eventId: event.id,
-        keycode: event.keycode,
-        name: editName.trim(),
-        isRequired: editIsRequired,
-      },
-    })
+    try {
+      await updateWaypoint({
+        variables: {
+          waypointId,
+          eventId: event?.id,
+          keycode: event?.keycode,
+          name: editName.trim(),
+          isRequired: editIsRequired,
+        },
+      })
 
-    await refetch()
-    handleCancelEdit()
+      await refetch()
+      handleCancelEdit()
+    } catch (err) {
+      console.error('Failed to update waypoint:', err)
+    }
   }
 
   const handleDeleteWaypoint = async (waypointId) => {
-    await deleteWaypoint({
-      variables: {
-        waypointId,
-        eventId: event.id,
-        keycode: event.keycode,
-      },
-    })
+    try {
+      await deleteWaypoint({
+        variables: {
+          waypointId,
+          eventId: event?.id,
+          keycode: event?.keycode,
+        },
+      })
 
-    await refetch()
-    if (editingWaypoint === waypointId) {
-      handleCancelEdit()
+      await refetch()
+      if (editingWaypoint === waypointId) {
+        handleCancelEdit()
+      }
+    } catch (err) {
+      console.error('Failed to delete waypoint:', err)
     }
+  }
+
+  const getErrorMessage = () => {
+    if (!error) return null
+    if (typeof error === 'string') return error
+    if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+      return error.graphQLErrors[0].message
+    }
+    if (error.networkError) return error.networkError.message || 'Network error'
+    if (error.message) return error.message
+    return 'Failed to load waypoints'
   }
 
   return (
@@ -221,7 +249,7 @@ function WaypointEditor({ event }) {
 
       {error && (
         <div className="error-message" style={{ marginBottom: '1rem' }}>
-          {error.message || 'Failed to load waypoints'}
+          {getErrorMessage()}
         </div>
       )}
 
