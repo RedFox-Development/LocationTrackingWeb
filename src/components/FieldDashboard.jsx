@@ -8,12 +8,12 @@ import '../UI/style/field-mode.css'
  * FieldDashboard - Main container for field organizer monitoring
  * Displays map, team locations, and geofence alerts in mobile-optimized layout
  */
-function FieldDashboard({ event, teams = [], waypoints = [], geofences = [] }) {
+function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isUpdating = false }) {
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [alerts, setAlerts] = useState([])
   const [isFullScreen, setIsFullScreen] = useState(false)
 
-  console.log('[FieldDashboard] Received props - event:', event?.name, 'teams:', teams?.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length)
+  console.log('[FieldDashboard] Received props - event:', event?.name, 'teams:', teams?.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length, 'isUpdating:', isUpdating)
 
   useEffect(() => {
     if (teams.length > 0 && !selectedTeam) {

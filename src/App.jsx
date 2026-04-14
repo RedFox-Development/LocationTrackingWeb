@@ -96,7 +96,7 @@ const App = () => {
                   </Link>
                 )}
                 {isFieldOrganizer && (
-                  <span className="nav-title">Field Operations</span>
+                  <span className="nav-title" style={{maxWidth: '35%'}}>Field Operations</span>
                 )}
                 <Link 
                   to="/logout" 

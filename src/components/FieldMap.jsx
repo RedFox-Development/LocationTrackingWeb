@@ -12,6 +12,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   const [teamPositions, setTeamPositions] = useState({})
 
   console.log('[FieldMap] Received props - teams:', teams.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length)
+  console.log('[FieldMap] Geofences details:', geofences?.map(g => ({ lat: g.lat, lon: g.lon, radius: g.radius, name: g.name })))
 
   // Initialize map with Leaflet
   useEffect(() => {
@@ -133,8 +134,10 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
 
     // Add geofence circles
     if (geofences && Array.isArray(geofences)) {
-      geofences.forEach((fence) => {
+      console.log('[FieldMap] Rendering', geofences.length, 'geofences')
+      geofences.forEach((fence, idx) => {
         if (fence.lat && fence.lon && fence.radius) {
+          console.log(`[FieldMap] Rendering geofence ${idx}:`, { lat: fence.lat, lon: fence.lon, radius: fence.radius })
           window.L.circle([fence.lat, fence.lon], {
             radius: fence.radius,
             color: '#EF4444',
@@ -143,8 +146,12 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
             fillOpacity: 0.1,
             interactive: false,
           }).addTo(mapRef.current)
+        } else {
+          console.warn(`[FieldMap] Geofence ${idx} missing required fields:`, fence)
         }
       })
+    } else {
+      console.warn('[FieldMap] Geofences not available or not an array:', geofences)
     }
 
     // Add waypoint markers
