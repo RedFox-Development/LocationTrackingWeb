@@ -55,13 +55,17 @@ function FieldModePage() {
   let geofences = []
   try {
     if (currentEvent?.geofence_data) {
+      console.log('[FieldModePage] Raw geofence_data:', currentEvent.geofence_data)
       geofences = JSON.parse(currentEvent.geofence_data)
       if (!Array.isArray(geofences)) {
         geofences = [geofences]
       }
+      console.log('[FieldModePage] Parsed geofences:', geofences)
+    } else {
+      console.warn('[FieldModePage] No geofence_data found in event:', currentEvent)
     }
   } catch (err) {
-    console.warn('[FieldModePage] Failed to parse geofence_data:', err)
+    console.error('[FieldModePage] Failed to parse geofence_data:', err, 'Raw data:', currentEvent?.geofence_data)
   }
 
   if (isLoading || teamsLoading) {

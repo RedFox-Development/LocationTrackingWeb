@@ -13,6 +13,8 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [] }) {
   const [alerts, setAlerts] = useState([])
   const [isFullScreen, setIsFullScreen] = useState(false)
 
+  console.log('[FieldDashboard] Received props - event:', event?.name, 'teams:', teams?.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length)
+
   useEffect(() => {
     if (teams.length > 0 && !selectedTeam) {
       setSelectedTeam(teams[0])

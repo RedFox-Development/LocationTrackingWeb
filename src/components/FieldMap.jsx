@@ -11,6 +11,8 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   const [mapZoom, setMapZoom] = useState(4)
   const [teamPositions, setTeamPositions] = useState({})
 
+  console.log('[FieldMap] Received props - teams:', teams.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length)
+
   // Initialize map with Leaflet
   useEffect(() => {
     if (typeof window !== 'undefined' && window.L && mapContainerRef.current && !mapRef.current) {
@@ -62,32 +64,42 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   // Fetch team positions from API (last 30 minutes)
   useEffect(() => {
     const fetchTeamPositions = async () => {
-      if (!event?.id || !event?.keycode) return
+      if (!event?.id || !event?.field_keycode) {
+        console.warn('[FieldMap] Cannot fetch positions - missing event.id:', event?.id, 'or field_keycode:', event?.field_keycode)
+        return
+      }
 
       try {
         const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'https://location-tracker-api.vercel.app'}/api/location-updates` +
-          `?eventId=${event.id}&startTime=${thirtyMinutesAgo}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${event.keycode}`,
-            },
-          }
-        )
+        const apiUrl = `${import.meta.env.VITE_API_URL || 'https://location-tracker-api.vercel.app'}/api/location-updates` +
+          `?eventId=${event.id}&startTime=${thirtyMinutesAgo}`
+        
+        console.log('[FieldMap] Fetching positions from:', apiUrl)
+        
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `Bearer ${event.field_keycode}`,
+          },
+        })
 
+        console.log('[FieldMap] Fetch response status:', response.status)
+        
         if (response.ok) {
           const data = await response.json()
+          console.log('[FieldMap] Received location updates:', data?.length, 'items')
           // Group positions by team
           const positions = {}
           teams.forEach(team => {
             positions[team.id] = data.filter(u => u.team === team.name)
               .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           })
+          console.log('[FieldMap] Grouped positions:', Object.keys(positions).map(k => ({ teamId: k, count: positions[k].length })))
           setTeamPositions(positions)
+        } else {
+          console.error('[FieldMap] Fetch failed with status:', response.status, response.statusText)
         }
       } catch (err) {
-        console.warn('[FieldMap] Failed to fetch positions:', err)
+        console.error('[FieldMap] Failed to fetch positions:', err)
       }
     }
 
