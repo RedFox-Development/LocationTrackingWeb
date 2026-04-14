@@ -97,7 +97,6 @@ const App = () => {
                 )}
                 {isFieldOrganizer && (
                   <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto'}}>
-                    <span className="nav-title" style={{whiteSpace: 'nowrap', margin: 0}}>Field Operations</span>
                     <Link 
                       to="/logout" 
                       className="logout-link"

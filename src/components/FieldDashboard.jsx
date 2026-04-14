@@ -12,6 +12,7 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isU
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [alerts, setAlerts] = useState([])
   const [isFullScreen, setIsFullScreen] = useState(false)
+  const [activeTab, setActiveTab] = useState('alerts')
 
   console.log('[FieldDashboard] Received props - event:', event?.name, 'teams:', teams?.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length, 'isUpdating:', isUpdating)
 
@@ -47,24 +48,42 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isU
         </button>
       </div>
 
-      {/* Alert Panel - Shown unless fullscreen */}
+      {/* Tab Section - Alerts and Teams */}
       {!isFullScreen && (
-        <div className="field-alerts-container">
-          <GeofenceAlertPanel
-            alerts={alerts}
-            onDismiss={handleDismissAlert}
-          />
-        </div>
-      )}
-
-      {/* Team Status Bar - Shown unless fullscreen */}
-      {!isFullScreen && (
-        <div className="field-teams-container">
-          <TeamStatusBar
-            teams={teams}
-            selectedTeam={selectedTeam}
-            onSelectTeam={setSelectedTeam}
-          />
+        <div className="field-tabs-section">
+          <div className="field-tabs-header">
+            <button
+              className={`field-tab ${activeTab === 'alerts' ? 'active' : ''}`}
+              onClick={() => setActiveTab('alerts')}
+            >
+              Alerts
+            </button>
+            <button
+              className={`field-tab ${activeTab === 'teams' ? 'active' : ''}`}
+              onClick={() => setActiveTab('teams')}
+            >
+              Teams
+            </button>
+          </div>
+          <div className="field-tabs-content">
+            {activeTab === 'alerts' && (
+              <div className="field-alerts-container">
+                <GeofenceAlertPanel
+                  alerts={alerts}
+                  onDismiss={handleDismissAlert}
+                />
+              </div>
+            )}
+            {activeTab === 'teams' && (
+              <div className="field-teams-container">
+                <TeamStatusBar
+                  teams={teams}
+                  selectedTeam={selectedTeam}
+                  onSelectTeam={setSelectedTeam}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 

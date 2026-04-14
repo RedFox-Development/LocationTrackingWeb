@@ -1098,6 +1098,12 @@ body {
   border-radius: 8px;
 }
 
+/* Field Mode Header - Smaller title */
+.field-mode-title {
+  font-size: 1.3rem !important;
+  font-weight: 600;
+}
+
 /* Consistent EventHeader styling across all views */
 .event-manager .event-info {
   display: flex;

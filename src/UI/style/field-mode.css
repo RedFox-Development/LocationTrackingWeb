@@ -81,13 +81,60 @@
   content: '⛶';
 }
 
-/* Alerts Container - 22.5% height (reduced by 1/4 from 30%) */
+/* Tab Section - Alerts and Teams under the map */
+.field-tabs-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #111;
+  border-top: 1px solid #333;
+}
+
+.field-tabs-header {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.field-tab {
+  flex: 1;
+  padding: 12px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.field-tab:hover {
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.field-tab.active {
+  color: #fff;
+  border-bottom-color: #3B82F6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.field-tabs-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Alerts Container - Now inside tabs */
 .field-alerts-container {
-  flex: 0 0 22.5%;
+  flex: 1;
   overflow-y: auto;
   background: #111;
-  border-bottom: 1px solid #333;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Geofence Alert Panel */
@@ -116,7 +163,6 @@
   align-items: center;
   margin-bottom: 8px;
   padding: 0 5px;
-  border-bottom: 1px solid #333;
 }
 
 .alerts-header h4 {
@@ -242,15 +288,12 @@
   transform: scale(0.95);
 }
 
-/* Teams Container - Variable height (increased from 40% to 50% for better scrolling) */
+/* Teams Container - Now inside tabs */
 .field-teams-container {
   flex: 1;
   overflow-y: auto;
   background: #0a0a0a;
-  border-bottom: 1px solid #333;
-  padding: 8px;
   -webkit-overflow-scrolling: touch;
-  min-height: 100px;
 }
 
 /* Team Status Bar */
@@ -259,6 +302,7 @@
   flex-direction: column;
   gap: 0;
   height: 100%;
+  padding: 8px;
 }
 
 .teams-scroll {
