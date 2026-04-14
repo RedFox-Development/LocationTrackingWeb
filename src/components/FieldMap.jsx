@@ -32,23 +32,40 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   useEffect(() => {
     if (!mapRef.current || !geofences || geofences.length === 0) return
 
-    // Calculate bounding box for all geofences
+    // Normalize geofences to array of polygons
+    let polygons = []
+    if (Array.isArray(geofences)) {
+      // Check if this is a single polygon or array of polygons
+      if (geofences.length > 0) {
+        if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
+          // Single polygon: [[lat1, lon1], [lat2, lon2], ...]
+          polygons = [geofences]
+        } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
+          // Multiple polygons: [[[lat1, lon1], [lat2, lon2], ...], [[lat3, lon3], ...]]
+          polygons = geofences
+        }
+      }
+    }
+
+    if (polygons.length === 0) return
+
+    // Calculate bounding box for all geofence polygons
     let minLat = Infinity, maxLat = -Infinity
     let minLon = Infinity, maxLon = -Infinity
     let hasValidGeofence = false
 
-    geofences.forEach((fence) => {
-      if (fence.lat && fence.lon && fence.radius) {
-        hasValidGeofence = true
-        // Earth's radius in meters
-        const earthRadius = 6371000
-        // Radius in degrees
-        const radiusInDegrees = (fence.radius / earthRadius) * (180 / Math.PI)
-
-        minLat = Math.min(minLat, fence.lat - radiusInDegrees)
-        maxLat = Math.max(maxLat, fence.lat + radiusInDegrees)
-        minLon = Math.min(minLon, fence.lon - radiusInDegrees)
-        maxLon = Math.max(maxLon, fence.lon + radiusInDegrees)
+    polygons.forEach((polygon) => {
+      if (Array.isArray(polygon)) {
+        polygon.forEach(point => {
+          if (Array.isArray(point) && point.length >= 2) {
+            hasValidGeofence = true
+            const [lat, lon] = point
+            minLat = Math.min(minLat, lat)
+            maxLat = Math.max(maxLat, lat)
+            minLon = Math.min(minLon, lon)
+            maxLon = Math.max(maxLon, lon)
+          }
+        })
       }
     })
 
@@ -61,6 +78,69 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
       mapRef.current.fitBounds(bounds, { padding: [50, 50] })
     }
   }, [geofences])
+
+  // Reset map view to show all geofences and team positions
+  const resetMapView = () => {
+    if (!mapRef.current || !window.L) return
+
+    // Normalize geofences to array of polygons
+    let polygons = []
+    if (Array.isArray(geofences) && geofences.length > 0) {
+      if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
+        polygons = [geofences]
+      } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
+        polygons = geofences
+      }
+    }
+
+    let minLat = Infinity, maxLat = -Infinity
+    let minLon = Infinity, maxLon = -Infinity
+    let hasValidData = false
+
+    // Get bounds from geofences
+    polygons.forEach((polygon) => {
+      if (Array.isArray(polygon)) {
+        polygon.forEach(point => {
+          if (Array.isArray(point) && point.length >= 2 && typeof point[0] === 'number' && typeof point[1] === 'number') {
+            hasValidData = true
+            const [lat, lon] = point
+            minLat = Math.min(minLat, lat)
+            maxLat = Math.max(maxLat, lat)
+            minLon = Math.min(minLon, lon)
+            maxLon = Math.max(maxLon, lon)
+          }
+        })
+      }
+    })
+
+    // Get bounds from team positions
+    Object.values(teamPositions).forEach(positions => {
+      if (positions.length > 0) {
+        const latest = positions[0]
+        if (latest.lat && latest.lon) {
+          hasValidData = true
+          minLat = Math.min(minLat, latest.lat)
+          maxLat = Math.max(maxLat, latest.lat)
+          minLon = Math.min(minLon, latest.lon)
+          maxLon = Math.max(maxLon, latest.lon)
+        }
+      }
+    })
+
+    // Fit map to bounds if we have valid data
+    if (hasValidData) {
+      const latRange = maxLat - minLat
+      const lonRange = maxLon - minLon
+      const latPadding = Math.max(latRange * 0.1, 0.001)
+      const lonPadding = Math.max(lonRange * 0.1, 0.001)
+
+      const bounds = window.L.latLngBounds(
+        [minLat - latPadding, minLon - lonPadding],
+        [maxLat + latPadding, maxLon + lonPadding]
+      )
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
+    }
+  }
 
   // Use team updates from props instead of fetching separately
   useEffect(() => {
@@ -132,26 +212,45 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
       }
     })
 
-    // Add geofence circles
-    if (geofences && Array.isArray(geofences)) {
-      console.log('[FieldMap] Rendering', geofences.length, 'geofences')
-      geofences.forEach((fence, idx) => {
-        if (fence.lat && fence.lon && fence.radius) {
-          console.log(`[FieldMap] Rendering geofence ${idx}:`, { lat: fence.lat, lon: fence.lon, radius: fence.radius })
-          window.L.circle([fence.lat, fence.lon], {
-            radius: fence.radius,
+    // Add geofence polygons
+    if (geofences && Array.isArray(geofences) && geofences.length > 0) {
+      // Normalize geofences to array of polygons
+      let polygons = []
+      if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
+        // Single polygon: [[lat1, lon1], [lat2, lon2], ...]
+        polygons = [geofences]
+      } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
+        // Multiple polygons: [[[lat1, lon1], [lat2, lon2], ...], [[lat3, lon3], ...]]
+        polygons = geofences
+      }
+      
+      console.log('[FieldMap] Rendering', polygons.length, 'geofence polygon(s)')
+      
+      polygons.forEach((polygon, idx) => {
+        const points = polygon.filter(p => Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number')
+        if (points.length >= 3) {
+          console.log(`[FieldMap] Rendering polygon ${idx} with ${points.length} points`)
+          window.L.polyline(points, {
             color: '#EF4444',
             weight: 2,
-            opacity: 0.5,
+            opacity: 0.7,
+            fill: true,
+            fillColor: '#EF4444',
             fillOpacity: 0.1,
-            interactive: false,
-          }).addTo(mapRef.current)
+            interactive: true,
+          })
+            .bindPopup(`Geofence ${idx + 1}`)
+            .addTo(mapRef.current)
         } else {
-          console.warn(`[FieldMap] Geofence ${idx} missing required fields:`, fence)
+          console.warn(`[FieldMap] Polygon ${idx} has only ${points.length} valid points (need 3+)`)
         }
       })
     } else {
-      console.warn('[FieldMap] Geofences not available or not an array:', geofences)
+      if (geofences && Array.isArray(geofences) && geofences.length === 0) {
+        console.log('[FieldMap] No geofences to render (empty array)')
+      } else {
+        console.warn('[FieldMap] Geofences not available or not an array:', geofences)
+      }
     }
 
     // Add waypoint markers
@@ -180,6 +279,27 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
           <p>Loading team locations...</p>
         </div>
       )}
+      <button
+        onClick={resetMapView}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          zIndex: 500,
+          padding: '0.5rem 1rem',
+          backgroundColor: '#2196f3',
+          color: 'white',
+          border: 'none',
+          borderRadius: '0.25rem',
+          cursor: 'pointer',
+          fontSize: '0.875rem',
+          fontWeight: '500',
+          boxShadow: '0 1px 5px rgba(0,0,0,0.2)',
+        }}
+        title="Reset map view to show all geofences and team positions"
+      >
+        Reset
+      </button>
     </div>
   )
 }

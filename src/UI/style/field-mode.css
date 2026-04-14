@@ -81,9 +81,9 @@
   content: '⛶';
 }
 
-/* Alerts Container - 30% height */
+/* Alerts Container - 22.5% height (reduced by 1/4 from 30%) */
 .field-alerts-container {
-  flex: 0 0 30%;
+  flex: 0 0 22.5%;
   overflow-y: auto;
   background: #111;
   border-bottom: 1px solid #333;

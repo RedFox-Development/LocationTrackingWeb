@@ -96,14 +96,24 @@ const App = () => {
                   </Link>
                 )}
                 {isFieldOrganizer && (
-                  <span className="nav-title" style={{maxWidth: '35%'}}>Field Operations</span>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto'}}>
+                    <span className="nav-title" style={{whiteSpace: 'nowrap', margin: 0}}>Field Operations</span>
+                    <Link 
+                      to="/logout" 
+                      className="logout-link"
+                    >
+                      Logout
+                    </Link>
+                  </div>
                 )}
-                <Link 
-                  to="/logout" 
-                  className="logout-link"
-                >
-                  Logout
-                </Link>
+                {!isFieldOrganizer && (
+                  <Link 
+                    to="/logout" 
+                    className="logout-link"
+                  >
+                    Logout
+                  </Link>
+                )}
               </>
             )}
             {!isLoggedIn && location.pathname !== '/setup' && (
@@ -154,7 +164,7 @@ const App = () => {
           <Route path="/logout" element={<LogoutPage />} />
         </Routes>
       </section>
-      {showHeader && (
+      {showHeader && !isFieldOrganizer && (
         <footer className="app-footer">
           <p>Location Tracker Web Interface</p>
         </footer>
