@@ -329,33 +329,29 @@ function EventManager({ event, onViewMap, onTeamsChanged }) {
                 </div>
               </div>
 
-              {event?.timeframe_start && event?.timeframe_end && (
-                <>
-                  <div className="qr-code-container">
-                    <QRCode
-                      id={`qr-${selectedTeam.id}`}
-                      value={generateQRData(selectedTeam)}
-                      size={320}
-                      logoImage={event.logo_data ? getImageDataUri(event.logo_data, event.logo_mime_type) : undefined}
-                      logoWidth={64}
-                      logoHeight={64}
-                      removeQrCodeBehindLogo={true}
-                      qrStyle="dots"
-                      eyeRadius={2}
-                    />
-                  </div>
-                  <button
-                    onClick={() => downloadQRCode(selectedTeam)}
-                    className="btn-primary"
-                  >
-                    Download QR Code
-                  </button>
-                  <div className="qr-info">
-                    <h4>QR Code Information</h4>
-                    <pre>{JSON.stringify(JSON.parse(generateQRData(selectedTeam)), null, 2)}</pre>
-                  </div>
-                </>
-              )}
+              <div className="qr-code-container">
+                <QRCode
+                  id={`qr-${selectedTeam.id}`}
+                  value={generateQRData(selectedTeam)}
+                  size={320}
+                  logoImage={event.logo_data ? getImageDataUri(event.logo_data, event.logo_mime_type) : undefined}
+                  logoWidth={64}
+                  logoHeight={64}
+                  removeQrCodeBehindLogo={true}
+                  qrStyle="dots"
+                  eyeRadius={2}
+                />
+              </div>
+              <button
+                onClick={() => downloadQRCode(selectedTeam)}
+                className="btn-primary"
+              >
+                Download QR Code
+              </button>
+              <div className="qr-info">
+                <h4>QR Code Information</h4>
+                <pre>{JSON.stringify(JSON.parse(generateQRData(selectedTeam)), null, 2)}</pre>
+              </div>
             </>
           ) : (
             <div className="empty-state">
