@@ -77,10 +77,22 @@ function FieldModePage() {
 
   useEffect(() => {
     if (teamsError) {
-      console.error('[FieldModePage] Teams query error:', teamsError)
+      console.error('[FieldModePage] Teams query error:', teamsError?.message)
+      console.error('[FieldModePage] Full error:', teamsError)
     }
     const status = networkStatus === 1 ? 'loading' : networkStatus === 4 ? 'polling' : 'idle'
-    console.log('[FieldModePage] Teams data received:', teamsData?.teams?.length || 0, 'teams, status:', status)
+    console.log('[FieldModePage] Query variables:', { eventId: currentEvent?.id }, 'Skip query:', !currentEvent?.id)
+    console.log('[FieldModePage] Teams query status:', status, 'networkStatus:', networkStatus)
+    console.log('[FieldModePage] teamsData:', teamsData)
+    console.log('[FieldModePage] teamsLoading:', teamsLoading)
+    console.log('[FieldModePage] Teams received:', teamsData?.teams?.length || 0, 'teams')
+    if (teamsData?.teams && teamsData.teams.length > 0) {
+      console.log('[FieldModePage] First team:', teamsData.teams[0])
+      console.log('[FieldModePage] First team updates:', teamsData.teams[0].updates?.length || 0, 'updates')
+      if (teamsData.teams[0].updates?.length > 0) {
+        console.log('[FieldModePage] First update:', teamsData.teams[0].updates[0])
+      }
+    }
   }, [teamsData, teamsError, networkStatus])
 
   // Only show loading on initial load or actual errors, not during polling

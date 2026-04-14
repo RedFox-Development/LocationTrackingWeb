@@ -70,6 +70,13 @@ function WaypointEditor({ event }) {
     fetchPolicy: 'network-only',
   })
 
+  useEffect(() => {
+    console.log('[WaypointEditor] Query state - eventId:', event?.id, 'skip:', !event?.id, 'loading:', loading, 'error:', error?.message)
+    if (data?.waypoints) {
+      console.log('[WaypointEditor] Waypoints received:', data.waypoints.length)
+    }
+  }, [event?.id, loading, error, data])
+
   const [createWaypoint, { loading: creating }] = useMutation(CREATE_WAYPOINT)
   const [updateWaypoint, { loading: updating }] = useMutation(UPDATE_WAYPOINT)
   const [deleteWaypoint, { loading: deleting }] = useMutation(DELETE_WAYPOINT)
