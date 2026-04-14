@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@apollo/client/react'
+import { QRCode } from 'react-qrcode-logo'
 import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE, UPDATE_TEAM_ACCESS_TIMEFRAME, UPDATE_EVENT_UPDATE_FREQUENCY, UPDATE_EVENT_API_URL } from '../api/graphql/event'
 import { parseDataUri } from '../utils/dataUri'
 import { exportEventAsZip } from '../utils/exportData'
@@ -8,6 +9,7 @@ import { getImageDataUri } from '../utils/dataUri'
 import { EventHeader } from '../components/EventHeader'
 import GeofenceEditor from '../components/GeofenceEditor'
 import WaypointEditor from '../components/WaypointEditor'
+import ThreeColumnGrid from '../components/ThreeColumnGrid'
 import { hasManageAccess, mergeEventWithAuthFields } from '../utils/eventAccess'
 
 const EventPage = (props) => {
@@ -119,6 +121,7 @@ const EventPage = (props) => {
         current.id === merged.id &&
         current.keycode === merged.keycode &&
         current.view_keycode === merged.view_keycode &&
+        current.field_keycode === merged.field_keycode &&
         current.access_level === merged.access_level &&
         current.organization_name === merged.organization_name &&
         current.expiration_date === merged.expiration_date &&
@@ -232,6 +235,32 @@ const EventPage = (props) => {
     } catch (err) {
       setError(err.message || 'Failed to read file')
       setLoading(false)
+    }
+  }
+
+  const handleDownloadQRCode = async () => {
+    try {
+      // Get the QR code canvas element
+      const qrCanvas = document.querySelector('#field-organizer-qr canvas')
+      if (!qrCanvas) {
+        setError('QR code not found')
+        return
+      }
+
+      // Convert canvas to blob and download
+      qrCanvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${event.name}-field-access-qr-${new Date().toISOString().split('T')[0]}.png`
+        document.body.appendChild(a)
+        a.click()
+        URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        setSuccess('QR code downloaded successfully!')
+      })
+    } catch (err) {
+      setError(err.message || 'Failed to download QR code')
     }
   }
 
@@ -426,7 +455,7 @@ const EventPage = (props) => {
 
       <div className="manage-section">
         <h3>Event Configuration</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '30% 30% 30%', gap: '1rem', marginBottom: '2rem', alignItems: 'center'}}>
+        <ThreeColumnGrid>
           <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 1 / 1 / 1' }}>Event Name</label>
           <p style={{ margin: '0.5rem 0', gridArea: '2 / 1 / 2 / 1' }}>{event.name}</p>
           <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 2 / 1 / 2' }}>Event Expiration Day</label>
@@ -435,7 +464,7 @@ const EventPage = (props) => {
               type="date"
               value={eventDeadlineDay}
               onChange={(e) => setEventDeadlineDay(e.target.value)}
-              style={{ maxWidth: '45%' }}
+              style={{ maxWidth: '55%' }}
               disabled={loading}
             />
           </div>
@@ -443,7 +472,7 @@ const EventPage = (props) => {
             onClick={handleEventDeadlineSave}
             className="btn-secondary"
             disabled={loading}
-            style={{ maxWidth: '45%', padding: '0.5rem 1rem', fontSize: '0.9rem', gridArea: '3 / 2 / 3 / 2' }}
+            style={{ maxWidth: '55%', padding: '0.5rem 1rem', fontSize: '0.9rem', gridArea: '3 / 2 / 3 / 2' }}
           >
             Save Expiration Day
           </button>
@@ -493,7 +522,7 @@ const EventPage = (props) => {
                 </button>
               </>
             )}
-        </div>
+        </ThreeColumnGrid>
 
         <h3 style={{ marginBottom: '0.5rem', marginTop: '2rem' }}>API URL</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '100%', gap: '1rem', marginBottom: '2rem', alignItems: 'center'}}>
@@ -568,140 +597,167 @@ const EventPage = (props) => {
         </div>
 
         <h3 style={{ marginBottom: '0.5rem' }}>Team Access Timeframe</h3>
-        <div className="timeframe-section" style={{ padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-            Set the access window during which teams can submit location updates. All teams share the same timeframe.
-          </p>
-          
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+          Set the access window during which teams can submit location updates. All teams share the same timeframe.
+        </p>
+        <ThreeColumnGrid>
           {/* Date Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '30% 30% 30%', gap: '1rem', marginBottom: '1rem' }}>
-            <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 1 / 1 / 1' }}>Start Date</label>
-            <input
-              type="date"
-              value={teamAccessTimeframeStart}
-              onChange={(e) => setTeamAccessTimeframeStart(e.target.value)}
-              disabled={loading}
-              style={{ maxWidth: '45%', gridArea: '2 / 1 / 2 / 1'}}
-            />
-            <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 2 / 1 / 2' }}>End Date</label>
-            <input
-              type="date"
-              value={teamAccessTimeframeEnd}
-              onChange={(e) => setTeamAccessTimeframeEnd(e.target.value)}
-              disabled={loading}
-              style={{ maxWidth: '45%', gridArea: '2 / 2 / 2 / 2' }}
-            />
-            <button
-              onClick={handleSaveTeamAccessTimeframe}
-              className="btn-secondary"
-              disabled={loading}
-              style={{ maxWidth: '55%', padding: '0.6rem 1rem', gridArea: '2 / 3 / 2 / 3' }}
-            >
-              {loading ? 'Saving...' : 'Save Timeframe'}
-            </button>
-            <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '3 / 1 / 3 / 1' }}>Start Time</label>
-            <input
-              type="time"
-              value={teamAccessTimeframeStartTime}
-              onChange={(e) => setTeamAccessTimeframeStartTime(e.target.value)}
-              disabled={loading}
-              style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '4 / 1 / 4 / 1' }}
-            />
-            <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '3 / 2 / 3 / 2' }}>End Time</label>
-            <input
-              type="time"
-              value={teamAccessTimeframeEndTime}
-              onChange={(e) => setTeamAccessTimeframeEndTime(e.target.value)}
-              disabled={loading}
-              style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '4 / 2 / 4 / 2' }}
-            />
-          </div>
-        </div>
+          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 1 / 1 / 1' }}>Start Date</label>
+          <input
+            type="date"
+            value={teamAccessTimeframeStart}
+            onChange={(e) => setTeamAccessTimeframeStart(e.target.value)}
+            disabled={loading}
+            style={{ maxWidth: '45%', gridArea: '2 / 1 / 2 / 1'}}
+          />
+          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 2 / 1 / 2' }}>End Date</label>
+          <input
+            type="date"
+            value={teamAccessTimeframeEnd}
+            onChange={(e) => setTeamAccessTimeframeEnd(e.target.value)}
+            disabled={loading}
+            style={{ maxWidth: '45%', gridArea: '2 / 2 / 2 / 2' }}
+          />
+          <button
+            onClick={handleSaveTeamAccessTimeframe}
+            className="btn-secondary"
+            disabled={loading}
+            style={{ maxWidth: '55%', padding: '0.6rem 1rem', gridArea: '2 / 3 / 2 / 3' }}
+          >
+            {loading ? 'Saving...' : 'Save Timeframe'}
+          </button>
+          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '3 / 1 / 3 / 1' }}>Start Time</label>
+          <input
+            type="time"
+            value={teamAccessTimeframeStartTime}
+            onChange={(e) => setTeamAccessTimeframeStartTime(e.target.value)}
+            disabled={loading}
+            style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '4 / 1 / 4 / 1' }}
+          />
+          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '3 / 2 / 3 / 2' }}>End Time</label>
+          <input
+            type="time"
+            value={teamAccessTimeframeEndTime}
+            onChange={(e) => setTeamAccessTimeframeEndTime(e.target.value)}
+            disabled={loading}
+            style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '4 / 2 / 4 / 2' }}
+          />
+        </ThreeColumnGrid>
 
         <h3 style={{ marginBottom: '0.5rem' }}>Location Update Frequency</h3>
-        <div className="frequency-section" style={{ padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem' }}>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-            Set how frequently teams mobile apps should send location updates. Lower values provide more frequent updates but consume more battery.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '30% 30% 30%', gap: '1rem' }}>
-            <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 1 / 1 / 1' }}>Update Frequency</label>
-            <select
-              value={updateFrequency}
-              onChange={(e) => setUpdateFrequency(e.target.value)}
-              disabled={loading}
-              style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '1 / 2 / 1 / 2' }}
-            >
-              <option value="1">1 second</option>
-              <option value="3">3 seconds</option>
-              <option value="5">5 seconds</option>
-              <option value="10">10 seconds</option>
-              <option value="15">15 seconds</option>
-              <option value="20">20 seconds</option>
-              <option value="30">30 seconds</option>
-              <option value="60">60 seconds</option>
-            </select>
-            <button
-              onClick={handleSaveUpdateFrequency}
-              className="btn-secondary"
-              disabled={loading}
-              style={{ maxWidth: '55%', padding: '0.6rem 1rem', gridArea: '1 / 3 / 1 / 3' }}
-            >
-              {loading ? 'Saving...' : 'Save Frequency'}
-            </button>
-            <div />
-          </div>
-        </div>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+          Set how frequently teams mobile apps should send location updates. Lower values provide more frequent updates but consume more battery.
+        </p>
+        <ThreeColumnGrid>
+          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 1 / 1 / 1' }}>Update Frequency</label>
+          <select
+            value={updateFrequency}
+            onChange={(e) => setUpdateFrequency(e.target.value)}
+            disabled={loading}
+            style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '1 / 2 / 1 / 2' }}
+          >
+            <option value="1">1 second</option>
+            <option value="3">3 seconds</option>
+            <option value="5">5 seconds</option>
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
+          <button
+            onClick={handleSaveUpdateFrequency}
+            className="btn-secondary"
+            disabled={loading}
+            style={{ maxWidth: '55%', padding: '0.6rem 1rem', gridArea: '1 / 3 / 1 / 3' }}
+          >
+            {loading ? 'Saving...' : 'Save Frequency'}
+          </button>
+        </ThreeColumnGrid>  
+        
+        <h3 style={{ marginBottom: '1rem' }}>Event Images & Access</h3>
+        <ThreeColumnGrid>
+          <label style={{ fontWeight: '600' }}>Event Image</label>
+          <label style={{ fontWeight: '600' }}>Organization Logo</label>
+          <label style={{ fontWeight: '600' }}>Field Access QR code</label>
 
-        <h3 style={{ marginBottom: '1rem' }}>Event Images</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '30% 30%', gap: '1rem 2rem', marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 1 / 1 / 1' }}>Event Image</label>
           {event.image_data && (
             <img 
               src={getImageDataUri(event.image_data, event.image_mime_type)} 
               alt="Event" 
               className="manage-image-preview" 
-              style={{ marginBottom: '0.5rem', maxWidth: '100%', borderRadius: '0.5rem', gridArea: '2 / 1 / 2 / 1' }}
+              style={{ maxWidth: '100%', borderRadius: '0.5rem', objectFit: 'cover' }}
             />
           )}
+          {event.logo_data && (
+            <img 
+              src={getImageDataUri(event.logo_data, event.logo_mime_type)} 
+              alt="Logo" 
+              className="manage-logo-preview" 
+              style={{ maxWidth: '100%', borderRadius: '0.5rem', aspectRatio: '1', objectFit: 'cover' }}
+            />
+          )}
+          {event?.field_keycode ? (
+            <QRCode
+              id="field-organizer-qr"
+              value={JSON.stringify({
+                event: event.name,
+                fieldKeycode: event.field_keycode,
+                type: 'field',
+              })}
+              size={180}
+              logoImage={event.logo_data ? getImageDataUri(event.logo_data, event.logo_mime_type) : undefined}
+              logoWidth={36}
+              logoHeight={36}
+              removeQrCodeBehindLogo={true}
+              qrStyle="dots"
+              eyeRadius={2}
+            />
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
+              QR code will appear once event is created
+            </div>
+          )}
+
           <input
             id="event-image-upload"
             type="file"
             accept="image/gif,image/png,image/jpeg,image/webp,image/*"
             onChange={handleImageUpload}
             disabled={loading}
-            style={{ display: 'none', gridArea: '3 / 1 / 3 / 1', maxWidth: '55%' }}
+            style={{ display: 'none' }}
           />
-          <label htmlFor="event-image-upload" className="btn-secondary" style={{ maxWidth: '55%', marginTop: '0.5rem', display: 'block', textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem' }}>
+          <label htmlFor="event-image-upload" className="btn-secondary" style={{ textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem' }}>
             {event.image_data ? 'Change Image' : 'Upload Image'}
           </label>
-          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 2 / 1 / 2' }}>Organization Logo</label>
-          {event.logo_data && (
-            <img 
-              src={getImageDataUri(event.logo_data, event.logo_mime_type)} 
-              alt="Logo" 
-              className="manage-logo-preview" 
-              style={{ marginBottom: '0.5rem', maxWidth: '100%', borderRadius: '0.5rem', gridArea: '2 / 2 / 2 / 2' }}
-            />
-          )}
           <input
             id="org-logo-upload"
             type="file"
             accept="image/gif,image/png,image/jpeg,image/webp,image/*"
             onChange={handleLogoUpload}
             disabled={loading}
-            style={{ display: 'none', gridArea: '3 / 2 / 3 / 2' }}
+            style={{ display: 'none' }}
           />
-          <label htmlFor="org-logo-upload" className="btn-secondary" style={{ maxWidth: '55%', marginTop: '0.5rem', display: 'block', textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem' }}>
+          <label htmlFor="org-logo-upload" className="btn-secondary" style={{ textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem' }}>
             {event.logo_data ? 'Change Logo' : 'Upload Logo'}
           </label>
-        </div>
+          {event?.field_keycode && (
+            <button
+              onClick={handleDownloadQRCode}
+              className="btn-secondary"
+              style={{ width: '100%', padding: '0.5rem 1rem', textAlign: 'center' }}
+            >
+              📥 Download QR Code
+            </button>
+          )}
+        </ThreeColumnGrid>
 
         <GeofenceEditor event={event} />
         <WaypointEditor event={event} />
 
         {!props.lockSomeFeatures && <>
           <h3 style={{ marginTop: '2rem', marginBottom: '1rem' }}>Export Event Data</h3>
-          <div className="export-section" style={{ display: 'grid', gridTemplateColumns: '30% 30% 30%', gap: '0.5rem 1rem' }}>
+          <ThreeColumnGrid>
             <p style={{ gridArea: '1 / 1 / 1 / 3', color: 'var(--text-secondary)', fontSize: '1rem' }}>
               Download a complete archive of your event data including teams, locations (GeoJSON & CSV),
               images, and metadata in a single ZIP file.
@@ -739,7 +795,7 @@ const EventPage = (props) => {
                 {exporting ? 'Exporting...' : '📦 Export event data as a ZIP file'}
               </button>
             </div>
-          </div>
+          </ThreeColumnGrid>
           </>
         }
       </div>

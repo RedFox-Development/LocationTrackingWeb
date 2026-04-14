@@ -10,6 +10,7 @@ import SetupPage from './routes/SetupPage'
 import EventPage from './routes/EventPage'
 import TeamsListPage from './routes/TeamsListPage'
 import MapViewPage from './routes/MapViewPage'
+import FieldModePage from './routes/FieldModePage'
 import LogoutPage from './routes/LogoutPage'
 import { hasManageAccess } from './utils/eventAccess'
 import './UI/style/App.css'
@@ -26,6 +27,7 @@ const App = () => {
     return eventData ? JSON.parse(eventData) : null
   })
   const canManageEvent = hasManageAccess(currentEvent)
+  const isFieldOrganizer = currentEvent?.access_level === 'field'
   const lockSomeFeatures = false;
 
   useEffect(() => {
@@ -57,8 +59,9 @@ const App = () => {
     console.error('[App] Error fetching teams:', error)
   }
 
-  // Don't show header on login and setup pages
+  // Don't show header on login and setup pages, show minimal header for field mode
   const showHeader = location.pathname !== '/login' && location.pathname !== '/setup'
+  const showFullNav = !isFieldOrganizer
 
   return (
     <>
@@ -68,7 +71,7 @@ const App = () => {
           <nav>
             {isLoggedIn && (
               <>
-                {canManageEvent && (
+                {showFullNav && canManageEvent && (
                   <Link 
                     to="/event" 
                     className={location.pathname === '/event' ? 'active' : ''}
@@ -76,7 +79,7 @@ const App = () => {
                     Event Dashboard
                   </Link>
                 )}
-                {canManageEvent && (
+                {showFullNav && canManageEvent && (
                   <Link 
                     to="/teams" 
                     className={location.pathname.startsWith('/teams') ? 'active' : ''}
@@ -84,12 +87,17 @@ const App = () => {
                     Teams
                   </Link>
                 )}
-                <Link 
-                  to="/event/map" 
-                  className={location.pathname === '/event/map' ? 'active' : ''}
-                >
-                  Map
-                </Link>
+                {showFullNav && (
+                  <Link 
+                    to="/event/map" 
+                    className={location.pathname === '/event/map' ? 'active' : ''}
+                  >
+                    Map
+                  </Link>
+                )}
+                {isFieldOrganizer && (
+                  <span className="nav-title">Field Operations</span>
+                )}
                 <Link 
                   to="/logout" 
                   className="logout-link"
@@ -132,6 +140,14 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <MapViewPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/field" 
+            element={
+              <ProtectedRoute>
+                <FieldModePage />
               </ProtectedRoute>
             } 
           />

@@ -15,6 +15,7 @@ export const LOGIN = gql`
         name
         keycode
         view_keycode
+        field_keycode
         access_level
         organization_name
         expiration_date
@@ -24,6 +25,7 @@ export const LOGIN = gql`
         image_mime_type
         logo_data
         logo_mime_type
+        update_frequency
       }
     }
   }

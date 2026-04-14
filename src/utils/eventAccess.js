@@ -16,8 +16,10 @@ export const mergeEventWithAuthFields = (fetchedEvent, previousEvent) => {
   const previousAccess = resolveAccessLevel(previousEvent)
   const fetchedAccess = resolveAccessLevel(fetchedEvent)
 
+  // Preserve keycodes from previous event if fetched ones are empty (API returns empty for security)
   merged.keycode = fetchedEvent?.keycode || previousEvent?.keycode || ''
   merged.view_keycode = fetchedEvent?.view_keycode || previousEvent?.view_keycode || ''
+  merged.field_keycode = fetchedEvent?.field_keycode || previousEvent?.field_keycode || ''
   merged.access_level = fetchedEvent?.access_level || previousEvent?.access_level || (previousAccess === 'view' || fetchedAccess === 'view' ? 'view' : 'manage')
 
   return merged
