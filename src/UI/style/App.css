@@ -1098,6 +1098,53 @@ body {
   border-radius: 8px;
 }
 
+/* Consistent EventHeader styling across all views */
+.event-manager .event-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.event-manager .event-info h2 {
+  flex: 1;
+  color: var(--primary-color);
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.event-manager .event-logo {
+  max-width: 80px;
+  max-height: 80px;
+  border-radius: 8px;
+}
+
+.map-view .event-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.map-view .event-info h2 {
+  flex: 1;
+  color: var(--primary-color);
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.map-view .event-logo {
+  max-width: 80px;
+  max-height: 80px;
+  border-radius: 8px;
+}
+
 .event-image-container {
   max-width: 300px;
 }
