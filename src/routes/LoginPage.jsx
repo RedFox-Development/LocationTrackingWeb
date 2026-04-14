@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import { LOGIN } from '../api/graphql/login'
@@ -103,7 +103,7 @@ function LoginPage() {
         qrScannerRef.current = null
       }
     }
-  }, [useQRMode])
+  }, [useQRMode, handleQRLogin])
 
   const handleLoginEvent = async (e) => {
     if (e?.preventDefault) {
@@ -193,13 +193,15 @@ function LoginPage() {
     }
   }
 
-  const handleQRLogin = async (qrEventName, qrKeycode) => {
+  const handleQRLogin = useCallback(async (qrEventName, qrKeycode) => {
+    console.log('[LoginPage] handleQRLogin called with:', { qrEventName, qrKeycode })
     setEventName(qrEventName)
     setEventKeycode(qrKeycode)
     setLoginError('')
     
     try {
       setIsSubmitting(true)
+      console.log('[LoginPage] Sending LOGIN query...')
       const result = await graphqlClient.query({
         query: LOGIN,
         variables: {
@@ -210,9 +212,10 @@ function LoginPage() {
       })
 
       const loginResult = result?.data?.login
-      console.log('[LoginPage] QR Login result:', result)
+      console.log('[LoginPage] QR Login result:', loginResult)
 
       if (!loginResult?.success || !loginResult?.event) {
+        console.error('[LoginPage] Login response missing success or event:', loginResult)
         setLoginError('Failed to login with QR code. Please try again.')
         return
       }
@@ -221,12 +224,14 @@ function LoginPage() {
         ...loginResult.event,
         access_level: loginResult.access_level || loginResult.event?.access_level || 'manage',
       }
+      console.log('[LoginPage] Setting current event to localStorage:', loggedInEvent)
       localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
       localStorage.removeItem('currentTeams')
       localStorage.removeItem('currentWaypoints')
 
       try {
         setIsBootstrappingEvent(true)
+        console.log('[LoginPage] Bootstrapping event data...')
 
         const [eventResult, teamsResult, waypointsResult] = await Promise.all([
           graphqlClient.query({
@@ -250,6 +255,7 @@ function LoginPage() {
         const teams = teamsResult?.data?.teams || []
         const waypoints = waypointsResult?.data?.waypoints || []
 
+        console.log('[LoginPage] Bootstrap complete, saving to localStorage')
         localStorage.setItem('currentEvent', JSON.stringify(fullEvent))
         localStorage.setItem('currentTeams', JSON.stringify(teams))
         localStorage.setItem('currentWaypoints', JSON.stringify(waypoints))
@@ -261,6 +267,7 @@ function LoginPage() {
 
       const accessLevel = loggedInEvent?.access_level || (loggedInEvent?.keycode ? 'manage' : 'view')
       const targetPath = accessLevel === 'manage' ? '/event' : accessLevel === 'field' ? '/field' : '/event/map'
+      console.log('[LoginPage] Navigating to:', targetPath, 'with access level:', accessLevel)
       navigate(targetPath, { replace: true })
     } catch (err) {
       console.error('[LoginPage] QR login error:', err)
@@ -269,7 +276,7 @@ function LoginPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [navigate])
 
   return (
     <div className="login-page">
