@@ -44,12 +44,19 @@ function FieldModePage() {
   }, [navigate])
 
   // Fetch teams with polling for real-time updates
-  const { data: teamsData, loading: teamsLoading } = useQuery(GET_TEAMS, {
+  const { data: teamsData, loading: teamsLoading, error: teamsError } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id },
     skip: !currentEvent?.id,
     pollInterval: 30000, // Poll every 30 seconds for real-time updates (reduced from 5s to conserve battery)
     fetchPolicy: 'network-only',
   })
+
+  useEffect(() => {
+    if (teamsError) {
+      console.error('[FieldModePage] Teams query error:', teamsError)
+    }
+    console.log('[FieldModePage] Teams data received:', teamsData?.teams?.length || 0, 'teams')
+  }, [teamsData, teamsError])
 
   // Parse geofences from event data
   let geofences = []

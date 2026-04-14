@@ -61,53 +61,28 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
     }
   }, [geofences])
 
-  // Fetch team positions from API (last 30 minutes)
+  // Use team updates from props instead of fetching separately
   useEffect(() => {
-    const fetchTeamPositions = async () => {
-      if (!event?.id || !event?.field_keycode) {
-        console.warn('[FieldMap] Cannot fetch positions - missing event.id:', event?.id, 'or field_keycode:', event?.field_keycode)
-        return
-      }
-
-      try {
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-        const apiUrl = `${import.meta.env.VITE_API_URL || 'https://location-tracker-api.vercel.app'}/api/location-updates` +
-          `?eventId=${event.id}&startTime=${thirtyMinutesAgo}`
-        
-        console.log('[FieldMap] Fetching positions from:', apiUrl)
-        
-        const response = await fetch(apiUrl, {
-          headers: {
-            'Authorization': `Bearer ${event.field_keycode}`,
-          },
-        })
-
-        console.log('[FieldMap] Fetch response status:', response.status)
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log('[FieldMap] Received location updates:', data?.length, 'items')
-          // Group positions by team
-          const positions = {}
-          teams.forEach(team => {
-            positions[team.id] = data.filter(u => u.team === team.name)
-              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          })
-          console.log('[FieldMap] Grouped positions:', Object.keys(positions).map(k => ({ teamId: k, count: positions[k].length })))
-          setTeamPositions(positions)
-        } else {
-          console.error('[FieldMap] Fetch failed with status:', response.status, response.statusText)
-        }
-      } catch (err) {
-        console.error('[FieldMap] Failed to fetch positions:', err)
-      }
+    if (!teams || teams.length === 0) {
+      console.log('[FieldMap] No teams available')
+      return
     }
 
-    const interval = setInterval(fetchTeamPositions, 4000) // Update every 4 seconds
-    fetchTeamPositions() // Initial fetch
-
-    return () => clearInterval(interval)
-  }, [event, teams])
+    // Group positions by team ID from the updates already provided
+    const positions = {}
+    teams.forEach(team => {
+      if (team.updates && Array.isArray(team.updates)) {
+        positions[team.id] = team.updates.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        console.log(`[FieldMap] Team ${team.name}: ${positions[team.id].length} position updates`)
+      } else {
+        positions[team.id] = []
+        console.warn(`[FieldMap] Team ${team.name} has no updates data`)
+      }
+    })
+    
+    console.log('[FieldMap] Updated teamPositions:', Object.keys(positions).length, 'teams')
+    setTeamPositions(positions)
+  }, [teams])
 
   // Update map markers
   useEffect(() => {

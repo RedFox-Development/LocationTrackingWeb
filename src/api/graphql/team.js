@@ -38,6 +38,14 @@ export const GET_TEAMS = gql`
       color
       event_id
       activated
+      updates {
+        id
+        team
+        event
+        lat
+        lon
+        timestamp
+      }
     }
   }
 `
