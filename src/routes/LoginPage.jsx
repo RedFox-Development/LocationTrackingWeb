@@ -216,7 +216,8 @@ function LoginPage() {
 
       if (!loginResult?.success || !loginResult?.event) {
         console.error('[LoginPage] Login response missing success or event:', loginResult)
-        setLoginError('Failed to login with QR code. Please try again.')
+        const errorMsg = loginResult?.error || 'Login failed. Please check that the event name and field keycode are correct.'
+        setLoginError(`Login failed: ${errorMsg}`)
         return
       }
 
