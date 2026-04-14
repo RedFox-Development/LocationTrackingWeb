@@ -18,6 +18,93 @@ function LoginPage() {
   const [qrReaderInitialized, setQrReaderInitialized] = useState(false)
   const qrScannerRef = useRef(null)
 
+  // Define handleQRLogin first so it can be used in dependencies
+  const handleQRLogin = useCallback(async (qrEventName, qrKeycode) => {
+    console.log('[LoginPage] handleQRLogin called with:', { qrEventName, qrKeycode })
+    setEventName(qrEventName)
+    setEventKeycode(qrKeycode)
+    setLoginError('')
+    
+    try {
+      setIsSubmitting(true)
+      console.log('[LoginPage] Sending LOGIN query...')
+      const result = await graphqlClient.query({
+        query: LOGIN,
+        variables: {
+          eventName: qrEventName.trim(),
+          keycode: qrKeycode.trim(),
+        },
+        fetchPolicy: 'network-only',
+      })
+
+      const loginResult = result?.data?.login
+      console.log('[LoginPage] QR Login result:', loginResult)
+
+      if (!loginResult?.success || !loginResult?.event) {
+        console.error('[LoginPage] Login response missing success or event:', loginResult)
+        const errorMsg = loginResult?.error || 'Login failed. Please check that the event name and field keycode are correct.'
+        setLoginError(`Login failed: ${errorMsg}`)
+        return
+      }
+
+      const loggedInEvent = {
+        ...loginResult.event,
+        access_level: loginResult.access_level || loginResult.event?.access_level || 'manage',
+      }
+      console.log('[LoginPage] Setting current event to localStorage:', loggedInEvent)
+      localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
+      localStorage.removeItem('currentTeams')
+      localStorage.removeItem('currentWaypoints')
+
+      try {
+        setIsBootstrappingEvent(true)
+        console.log('[LoginPage] Bootstrapping event data...')
+
+        const [eventResult, teamsResult, waypointsResult] = await Promise.all([
+          graphqlClient.query({
+            query: GET_EVENT,
+            variables: { id: loggedInEvent.id },
+            fetchPolicy: 'network-only',
+          }),
+          graphqlClient.query({
+            query: GET_TEAMS,
+            variables: { eventId: loggedInEvent.id },
+            fetchPolicy: 'network-only',
+          }),
+          graphqlClient.query({
+            query: GET_WAYPOINTS,
+            variables: { eventId: loggedInEvent.id },
+            fetchPolicy: 'network-only',
+          }),
+        ])
+
+        const fullEvent = mergeEventWithAuthFields(eventResult?.data?.event || null, loggedInEvent)
+        const teams = teamsResult?.data?.teams || []
+        const waypoints = waypointsResult?.data?.waypoints || []
+
+        console.log('[LoginPage] Bootstrap complete, saving to localStorage')
+        localStorage.setItem('currentEvent', JSON.stringify(fullEvent))
+        localStorage.setItem('currentTeams', JSON.stringify(teams))
+        localStorage.setItem('currentWaypoints', JSON.stringify(waypoints))
+      } catch (bootstrapError) {
+        console.error('[LoginPage] event bootstrap failed, continuing with minimal event data:', bootstrapError)
+      } finally {
+        setIsBootstrappingEvent(false)
+      }
+
+      const accessLevel = loggedInEvent?.access_level || (loggedInEvent?.keycode ? 'manage' : 'view')
+      const targetPath = accessLevel === 'manage' ? '/event' : accessLevel === 'field' ? '/field' : '/event/map'
+      console.log('[LoginPage] Navigating to:', targetPath, 'with access level:', accessLevel)
+      navigate(targetPath, { replace: true })
+    } catch (err) {
+      console.error('[LoginPage] QR login error:', err)
+      setLoginError(err.message || 'Failed to login with QR code')
+      setIsBootstrappingEvent(false)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [navigate])
+
   // Redirect if already logged in (check only on mount)
   useEffect(() => {
     const currentEvent = localStorage.getItem('currentEvent')
@@ -193,92 +280,6 @@ function LoginPage() {
       setIsSubmitting(false)
     }
   }
-
-  const handleQRLogin = useCallback(async (qrEventName, qrKeycode) => {
-    console.log('[LoginPage] handleQRLogin called with:', { qrEventName, qrKeycode })
-    setEventName(qrEventName)
-    setEventKeycode(qrKeycode)
-    setLoginError('')
-    
-    try {
-      setIsSubmitting(true)
-      console.log('[LoginPage] Sending LOGIN query...')
-      const result = await graphqlClient.query({
-        query: LOGIN,
-        variables: {
-          eventName: qrEventName.trim(),
-          keycode: qrKeycode.trim(),
-        },
-        fetchPolicy: 'network-only',
-      })
-
-      const loginResult = result?.data?.login
-      console.log('[LoginPage] QR Login result:', loginResult)
-
-      if (!loginResult?.success || !loginResult?.event) {
-        console.error('[LoginPage] Login response missing success or event:', loginResult)
-        const errorMsg = loginResult?.error || 'Login failed. Please check that the event name and field keycode are correct.'
-        setLoginError(`Login failed: ${errorMsg}`)
-        return
-      }
-
-      const loggedInEvent = {
-        ...loginResult.event,
-        access_level: loginResult.access_level || loginResult.event?.access_level || 'manage',
-      }
-      console.log('[LoginPage] Setting current event to localStorage:', loggedInEvent)
-      localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
-      localStorage.removeItem('currentTeams')
-      localStorage.removeItem('currentWaypoints')
-
-      try {
-        setIsBootstrappingEvent(true)
-        console.log('[LoginPage] Bootstrapping event data...')
-
-        const [eventResult, teamsResult, waypointsResult] = await Promise.all([
-          graphqlClient.query({
-            query: GET_EVENT,
-            variables: { id: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-          graphqlClient.query({
-            query: GET_TEAMS,
-            variables: { eventId: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-          graphqlClient.query({
-            query: GET_WAYPOINTS,
-            variables: { eventId: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-        ])
-
-        const fullEvent = mergeEventWithAuthFields(eventResult?.data?.event || null, loggedInEvent)
-        const teams = teamsResult?.data?.teams || []
-        const waypoints = waypointsResult?.data?.waypoints || []
-
-        console.log('[LoginPage] Bootstrap complete, saving to localStorage')
-        localStorage.setItem('currentEvent', JSON.stringify(fullEvent))
-        localStorage.setItem('currentTeams', JSON.stringify(teams))
-        localStorage.setItem('currentWaypoints', JSON.stringify(waypoints))
-      } catch (bootstrapError) {
-        console.error('[LoginPage] event bootstrap failed, continuing with minimal event data:', bootstrapError)
-      } finally {
-        setIsBootstrappingEvent(false)
-      }
-
-      const accessLevel = loggedInEvent?.access_level || (loggedInEvent?.keycode ? 'manage' : 'view')
-      const targetPath = accessLevel === 'manage' ? '/event' : accessLevel === 'field' ? '/field' : '/event/map'
-      console.log('[LoginPage] Navigating to:', targetPath, 'with access level:', accessLevel)
-      navigate(targetPath, { replace: true })
-    } catch (err) {
-      console.error('[LoginPage] QR login error:', err)
-      setLoginError(err.message || 'Failed to login with QR code')
-      setIsBootstrappingEvent(false)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [navigate])
 
   return (
     <div className="login-page">
