@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Html5QrcodeScanner } from 'html5-qrcode'
 import { LOGIN } from '../api/graphql/login'
 import { GET_EVENT } from '../api/graphql/event'
 import { GET_TEAMS } from '../api/graphql/team'
@@ -49,13 +48,17 @@ function LoginPage() {
 
   // Handle QR mode toggle and initialization
   useEffect(() => {
-    if (!useQRMode || qrReaderInitialized) return
+    if (!useQRMode) return
 
     // Wait a tick to ensure DOM is ready
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       try {
         console.log('[LoginPage] Initializing QR scanner...')
-        const scanner = new Html5QrcodeScanner(
+        
+        // Dynamically import the scanner only when needed
+        const { Html5QrcodeScanner: Scanner } = await import('html5-qrcode')
+        
+        const scanner = new Scanner(
           'qr-reader',
           { fps: 10, qrbox: { width: 250, height: 250 } },
           false
@@ -69,7 +72,6 @@ function LoginPage() {
               console.log('[LoginPage] QR code scanned successfully, logging in...')
               scanner.clear().catch(err => console.error('[LoginPage] Error clearing scanner:', err))
               setUseQRMode(false)
-              setQrReaderInitialized(false)
               // Trigger login after a short delay to allow state update
               setTimeout(() => {
                 handleQRLogin(qrData.event, qrData.fieldKeycode)
@@ -87,7 +89,6 @@ function LoginPage() {
 
         scanner.render(handleSuccess, handleError)
         qrScannerRef.current = scanner
-        setQrReaderInitialized(true)
         console.log('[LoginPage] QR scanner initialized successfully')
       } catch (err) {
         console.error('[LoginPage] Failed to initialize QR scanner:', err)
