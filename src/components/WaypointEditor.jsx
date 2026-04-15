@@ -66,6 +66,8 @@ function WaypointEditor({ event }) {
   const [editPointValue, setEditPointValue] = useState(1)
   const [editIsRequired, setEditIsRequired] = useState(false)
 
+  const WAYPOINT_TYPES = ['START', 'CHECKPOINT', 'END']
+
   const { data, loading, error, refetch } = useQuery(GET_WAYPOINTS, {
     variables: { eventId: event?.id },
     skip: !event?.id,
@@ -152,7 +154,7 @@ function WaypointEditor({ event }) {
               name: draft.name.trim(),
               lat: draft.lat,
               lon: draft.lon,
-              type: draft.type || 'checkpoint',
+              type: (draft.type || 'CHECKPOINT').toUpperCase(),
               pointValue: draft.pointValue || 0,
               isRequired: Boolean(draft.is_required),
             },
@@ -192,7 +194,7 @@ function WaypointEditor({ event }) {
   const handleStartEdit = (waypoint) => {
     setEditingWaypoint(waypoint.id)
     setEditName(waypoint.name)
-    setEditType(waypoint.type || 'checkpoint')
+    setEditType((waypoint.type || 'CHECKPOINT').toUpperCase())
     setEditPointValue(waypoint.pointValue || 0)
     setEditIsRequired(Boolean(waypoint.is_required))
   }
@@ -217,7 +219,7 @@ function WaypointEditor({ event }) {
           eventId: event?.id,
           keycode: event?.keycode,
           name: editName.trim(),
-          type: editType,
+          type: editType.toUpperCase(),
           pointValue: editPointValue,
           isRequired: editIsRequired,
         },
@@ -346,22 +348,24 @@ function WaypointEditor({ event }) {
                           onChange={(e) => handleDraftChange(draft.tempId, 'name', e.target.value)}
                           placeholder="Waypoint name"
                           disabled={isSaving}
+                          style={{ maxWidth: '40%' }}
                         />
                       </div>
+                      <label>Type of waypoint</label>
                       <div className="form-group" style={{ marginBottom: '0.6rem' }}>
-                        <label>Type</label>
                         <select
                           value={draft.type || 'CHECKPOINT'}
                           onChange={(e) => handleDraftChange(draft.tempId, 'type', e.target.value)}
                           disabled={isSaving}
+                          style={{ maxWidth: '40%' }}
                         >
                           <option value="START">Start</option>
                           <option value="CHECKPOINT">Checkpoint</option>
                           <option value="END">End</option>
                         </select>
                       </div>
+                      <label>Points</label>
                       <div className="form-group" style={{ marginBottom: '0.6rem' }}>
-                        <label>Points</label>
                         <input
                           type="number"
                           value={draft.pointValue || 1}
@@ -370,26 +374,30 @@ function WaypointEditor({ event }) {
                           min="0"
                         />
                       </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(draft.is_required)}
-                          onChange={(e) => handleDraftChange(draft.tempId, 'is_required', e.target.checked)}
-                          disabled={isSaving}
-                        />
-                        Required waypoint
-                      </label>
+                      <div className="form-group" style={{ marginBottom: '0.6rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(draft.is_required)}
+                            onChange={(e) => handleDraftChange(draft.tempId, 'is_required', e.target.checked)}
+                            disabled={isSaving}
+                          />
+                          Required waypoint
+                        </label>
+                      </div>
                       <p style={{ color: 'var(--text-secondary)' }}>
-                        {draft.lat.toFixed(5)}, {draft.lon.toFixed(5)}
+                        Location: {draft.lat.toFixed(5)}, {draft.lon.toFixed(5)}
                       </p>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => handleRemoveDraft(draft.tempId)}
-                        disabled={isSaving}
-                      >
-                        Remove
-                      </button>
+                      <div className="form-group" style={{ marginTop: '0.25rem' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => handleRemoveDraft(draft.tempId)}
+                          disabled={isSaving}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
