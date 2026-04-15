@@ -268,7 +268,9 @@ body {
 .form-group input[type="url"],
 .form-group input[type="date"],
 .form-group input[type="password"],
-.form-group input[type="file"] {
+.form-group input[type="file"],
+.form-group input[type="time"] ,
+.form-group select {
   width: 100%;
   padding: 0.8rem;
   border: 2px solid var(--border);

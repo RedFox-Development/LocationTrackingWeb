@@ -590,7 +590,7 @@ const EventPage = (props) => {
                 className="btn-secondary"
                 style={{ maxWidth: '20%', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
               >
-                Edit
+                Change API endpoint
               </button>
             </>
           )}
@@ -602,46 +602,56 @@ const EventPage = (props) => {
         </p>
         <ThreeColumnGrid>
           {/* Date Row */}
-          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 1 / 1 / 1' }}>Start Date</label>
-          <input
-            type="date"
-            value={teamAccessTimeframeStart}
-            onChange={(e) => setTeamAccessTimeframeStart(e.target.value)}
-            disabled={loading}
-            style={{ maxWidth: '45%', gridArea: '2 / 1 / 2 / 1'}}
-          />
-          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 2 / 1 / 2' }}>End Date</label>
-          <input
-            type="date"
-            value={teamAccessTimeframeEnd}
-            onChange={(e) => setTeamAccessTimeframeEnd(e.target.value)}
-            disabled={loading}
-            style={{ maxWidth: '45%', gridArea: '2 / 2 / 2 / 2' }}
-          />
-          <button
-            onClick={handleSaveTeamAccessTimeframe}
-            className="btn-secondary"
-            disabled={loading}
-            style={{ maxWidth: '55%', padding: '0.6rem 1rem', gridArea: '2 / 3 / 2 / 3' }}
-          >
-            {loading ? 'Saving...' : 'Save Timeframe'}
-          </button>
-          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '3 / 1 / 3 / 1' }}>Start Time</label>
-          <input
-            type="time"
-            value={teamAccessTimeframeStartTime}
-            onChange={(e) => setTeamAccessTimeframeStartTime(e.target.value)}
-            disabled={loading}
-            style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '4 / 1 / 4 / 1' }}
-          />
-          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '3 / 2 / 3 / 2' }}>End Time</label>
-          <input
-            type="time"
-            value={teamAccessTimeframeEndTime}
-            onChange={(e) => setTeamAccessTimeframeEndTime(e.target.value)}
-            disabled={loading}
-            style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '4 / 2 / 4 / 2' }}
-          />
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 1 / 1 / 1' }}>Start Date</label>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '2 / 1 / 2 / 1' }}>
+            <input
+              type="date"
+              value={teamAccessTimeframeStart}
+              onChange={(e) => setTeamAccessTimeframeStart(e.target.value)}
+              disabled={loading}
+              style={{ maxWidth: '45%'}}
+            />
+          </div>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 2 / 1 / 2' }}>End Date</label>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '2 / 2 / 2 / 2' }}>
+            <input
+              type="date"
+              value={teamAccessTimeframeEnd}
+              onChange={(e) => setTeamAccessTimeframeEnd(e.target.value)}
+              disabled={loading}
+              style={{ maxWidth: '45%' }}
+            />
+          </div>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '2 / 3 / 2 / 3' }}>
+            <button
+              onClick={handleSaveTeamAccessTimeframe}
+              className="btn-secondary"
+              disabled={loading}
+              style={{ maxWidth: '55%', padding: '0.6rem 1rem' }}
+            >
+              {loading ? 'Saving...' : 'Save Timeframe'}
+            </button>
+          </div>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '3 / 1 / 3 / 1' }}>Start Time</label>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '4 / 1 / 4 / 1' }}>
+            <input
+              type="time"
+              value={teamAccessTimeframeStartTime}
+              onChange={(e) => setTeamAccessTimeframeStartTime(e.target.value)}
+              disabled={loading}
+              style={{ maxWidth: '45%', marginBottom: '0.3rem' }}
+            />
+          </div>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '3 / 2 / 3 / 2' }}>End Time</label>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '4 / 2 / 4 / 2' }}>
+            <input
+              type="time"
+              value={teamAccessTimeframeEndTime}
+              onChange={(e) => setTeamAccessTimeframeEndTime(e.target.value)}
+              disabled={loading}
+              style={{ maxWidth: '45%', marginBottom: '0.3rem' }}
+            />
+          </div>
         </ThreeColumnGrid>
 
         <h3 style={{ marginBottom: '0.5rem' }}>Location Update Frequency</h3>
@@ -649,44 +659,48 @@ const EventPage = (props) => {
           Set how frequently teams mobile apps should send location updates. Lower values provide more frequent updates but consume more battery.
         </p>
         <ThreeColumnGrid>
-          <label style={{ maxWidth: '45%', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'block', gridArea: '1 / 1 / 1 / 1' }}>Update Frequency</label>
-          <select
-            value={updateFrequency}
-            onChange={(e) => setUpdateFrequency(e.target.value)}
-            disabled={loading}
-            style={{ maxWidth: '45%', marginBottom: '0.3rem', gridArea: '1 / 2 / 1 / 2' }}
-          >
-            <option value="1">1 second</option>
-            <option value="3">3 seconds</option>
-            <option value="5">5 seconds</option>
-            <option value="10">10 seconds</option>
-            <option value="15">15 seconds</option>
-            <option value="20">20 seconds</option>
-            <option value="30">30 seconds</option>
-            <option value="60">60 seconds</option>
-          </select>
-          <button
-            onClick={handleSaveUpdateFrequency}
-            className="btn-secondary"
-            disabled={loading}
-            style={{ maxWidth: '55%', padding: '0.6rem 1rem', gridArea: '1 / 3 / 1 / 3' }}
-          >
-            {loading ? 'Saving...' : 'Save Frequency'}
-          </button>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 1 / 1 / 1' }}>Update Frequency</label>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '1 / 2 / 1 / 2' }}>
+            <select
+              value={updateFrequency}
+              onChange={(e) => setUpdateFrequency(e.target.value)}
+              disabled={loading}
+              style={{ maxWidth: '45%', marginBottom: '0.3rem' }}
+            >
+              <option value="1">1 second</option>
+              <option value="3">3 seconds</option>
+              <option value="5">5 seconds</option>
+              <option value="10">10 seconds</option>
+              <option value="15">15 seconds</option>
+              <option value="20">20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">60 seconds</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '1 / 3 / 1 / 3' }}>
+            <button
+              onClick={handleSaveUpdateFrequency}
+              className="btn-secondary"
+              disabled={loading}
+              style={{ maxWidth: '55%', padding: '0.6rem 1rem' }}
+            >
+              {loading ? 'Saving...' : 'Save Frequency'}
+            </button>
+          </div>
         </ThreeColumnGrid>  
         
         <h3 style={{ marginBottom: '1rem' }}>Event Images & Access</h3>
         <ThreeColumnGrid>
-          <label style={{ fontWeight: '600' }}>Event Image</label>
-          <label style={{ fontWeight: '600' }}>Organization Logo</label>
-          <label style={{ fontWeight: '600' }}>Field Access QR code</label>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 1 / 1 / 1' }}>Event Image</label>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 2 / 1 / 2' }}>Organization Logo</label>
+          <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '1 / 3 / 1 / 3' }}>Field Access QR code</label>
 
           {event.image_data && (
             <img 
               src={getImageDataUri(event.image_data, event.image_mime_type)} 
               alt="Event" 
               className="manage-image-preview" 
-              style={{ maxWidth: '100%', borderRadius: '0.5rem', objectFit: 'cover' }}
+              style={{ maxWidth: '100%', borderRadius: '0.5rem', objectFit: 'cover', gridArea: '2 / 1 / 2 / 1' }}
             />
           )}
           {event.logo_data && (
@@ -694,7 +708,7 @@ const EventPage = (props) => {
               src={getImageDataUri(event.logo_data, event.logo_mime_type)} 
               alt="Logo" 
               className="manage-logo-preview" 
-              style={{ maxWidth: '100%', borderRadius: '0.5rem', aspectRatio: '1', objectFit: 'cover' }}
+              style={{ maxWidth: '100%', borderRadius: '0.5rem', objectFit: 'cover', gridArea: '2 / 2 / 2 / 2' }}
             />
           )}
           {event?.field_keycode ? (
@@ -712,6 +726,7 @@ const EventPage = (props) => {
               removeQrCodeBehindLogo={true}
               qrStyle="dots"
               eyeRadius={2}
+              style={{ gridArea: '2 / 3 / 2 / 3' }}
             />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
@@ -719,36 +734,42 @@ const EventPage = (props) => {
             </div>
           )}
 
-          <input
-            id="event-image-upload"
-            type="file"
-            accept="image/gif,image/png,image/jpeg,image/webp,image/*"
-            onChange={handleImageUpload}
-            disabled={loading}
-            style={{ display: 'none' }}
-          />
-          <label htmlFor="event-image-upload" className="btn-secondary" style={{ textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem' }}>
-            {event.image_data ? 'Change Image' : 'Upload Image'}
-          </label>
-          <input
-            id="org-logo-upload"
-            type="file"
-            accept="image/gif,image/png,image/jpeg,image/webp,image/*"
-            onChange={handleLogoUpload}
-            disabled={loading}
-            style={{ display: 'none' }}
-          />
-          <label htmlFor="org-logo-upload" className="btn-secondary" style={{ textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem' }}>
-            {event.logo_data ? 'Change Logo' : 'Upload Logo'}
-          </label>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '3 / 1 / 3 / 1' }}>
+            <input
+              id="event-image-upload"
+              type="file"
+              accept="image/gif,image/png,image/jpeg,image/webp,image/*"
+              onChange={handleImageUpload}
+              disabled={loading}
+              style={{ display: 'none', maxWidth: '55%' }}
+            />
+            <label htmlFor="event-image-upload" className="btn-secondary" style={{ textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem', maxWidth: '55%', fontWeight: '600' }}>
+              {event.image_data ? 'Change Image' : 'Upload Image'}
+            </label>
+          </div>
+          <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '3 / 2 / 3 / 2' }}>
+            <input
+              id="org-logo-upload"
+              type="file"
+              accept="image/gif,image/png,image/jpeg,image/webp,image/*"
+              onChange={handleLogoUpload}
+              disabled={loading}
+              style={{ display: 'none' }}
+            />
+            <label htmlFor="org-logo-upload" className="btn-secondary" style={{ textAlign: 'center', cursor: 'pointer', padding: '0.5rem 1rem', maxWidth: '55%', fontWeight: '600' }}>
+              {event.logo_data ? 'Change Logo' : 'Upload Logo'}
+            </label>
+          </div>
           {event?.field_keycode && (
-            <button
-              onClick={handleDownloadQRCode}
-              className="btn-secondary"
-              style={{ width: '100%', padding: '0.5rem 1rem', textAlign: 'center' }}
-            >
-              📥 Download QR Code
-            </button>
+            <div className="form-group" style={{ margin: '0.5rem 0', marginBottom: '0.5rem', gridArea: '3 / 3 / 3 / 3' }}>
+              <button
+                onClick={handleDownloadQRCode}
+                className="btn-secondary"
+                style={{ maxWidth: '55%', padding: '0.5rem 1rem', textAlign: 'center' }}
+              >
+                📥 Download QR Code
+              </button>
+            </div>
           )}
         </ThreeColumnGrid>
 
@@ -765,8 +786,8 @@ const EventPage = (props) => {
             {!exportStartDate && !exportEndDate && (<p style={{ gridArea: '2 / 1 / 2 / 3', color: 'var(--text-secondary)', fontSize: '1rem', textDecoration: 'var(--error-color) solid underline 2px' }}>
               If you leave dates empty, all location data will be exported
             </p>)}
-            <div className="form-group" style={{ flex: 1, gridArea: '3 / 1 / 3 / 1', marginTop: '1rem' }}>
-              <label >Start Date (optional)</label>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '3 / 1 / 3 / 1' }}>Start Date (optional)</label>
+            <div className="form-group" style={{ flex: 1, gridArea: '4 / 1 / 4 / 1' }}>
               <input
                 type="date"
                 value={exportStartDate}
@@ -775,8 +796,8 @@ const EventPage = (props) => {
                 style={{ maxWidth: '55%'}}
               />
             </div>
-            <div className="form-group" style={{ flex: 1, gridArea: '3 / 2 / 3 / 2', marginTop: '1rem' }}>
-              <label>End Date (optional)</label>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', gridArea: '3 / 2 / 3 / 2' }}>End Date (optional)</label>
+            <div className="form-group" style={{ flex: 1, gridArea: '4 / 2 / 4 / 2' }}>
               <input
                 type="date"
                 value={exportEndDate}
@@ -785,7 +806,7 @@ const EventPage = (props) => {
                 style={{ maxWidth: '55%'}}
               />
             </div>
-            <div className="form-group" style={{ flex: 1, maxWidth: '55%', gridArea: '3 / 3 / 3 / 3', marginTop: '2.5rem' }}>
+            <div className="form-group" style={{ flex: 1, maxWidth: '55%', gridArea: '4 / 3 / 4 / 3' }}>
               <button
                 onClick={handleExportData}
                 className="btn-primary"
