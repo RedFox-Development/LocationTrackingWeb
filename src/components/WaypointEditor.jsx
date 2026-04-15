@@ -62,8 +62,8 @@ function WaypointEditor({ event }) {
 
   const [editingWaypoint, setEditingWaypoint] = useState(null)
   const [editName, setEditName] = useState('')
-  const [editType, setEditType] = useState('checkpoint')
-  const [editPointValue, setEditPointValue] = useState(0)
+  const [editType, setEditType] = useState('CHECKPOINT')
+  const [editPointValue, setEditPointValue] = useState(1)
   const [editIsRequired, setEditIsRequired] = useState(false)
 
   const { data, loading, error, refetch } = useQuery(GET_WAYPOINTS, {
