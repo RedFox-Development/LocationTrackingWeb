@@ -37,8 +37,6 @@ const createTeamIcon = (color, isHistoryDot = false) => {
   })
 }
 
-
-
 const normalizeTimestamp = (value) => {
   if (!value) return value
   if (typeof value === 'number') {
@@ -587,13 +585,12 @@ function MapView({ event, teams }) {
 
         {waypoints.map((waypoint) => {
           const visitedTeams = waypointVisitCounts[waypoint.id] || 0
-          const isVisitedByAny = visitedTeams > 0
 
           return (
             <Marker
               key={`waypoint-${waypoint.id}`}
               position={[waypoint.lat, waypoint.lon]}
-              icon={createWaypointIcon(waypoint.type, waypoint.is_required, isVisitedByAny)}
+              icon={createWaypointIcon(waypoint.type, waypoint.is_required, visibleTeams > 0)}
             >
               <Popup>
                 <div>
