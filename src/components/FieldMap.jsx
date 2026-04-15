@@ -179,39 +179,6 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
       }
     })
 
-    // Add team position markers
-    teams.forEach((team) => {
-      const positions = teamPositions[team.id] || []
-      if (positions.length > 0) {
-        const latest = positions[0]
-        const color = team.color || '#3B82F6'
-
-        // Add circle marker for current position
-        window.L.circleMarker([latest.lat, latest.lon], {
-          radius: 8,
-          fillColor: color,
-          color: selectedTeam?.id === team.id ? '#000' : 'white',
-          weight: selectedTeam?.id === team.id ? 3 : 2,
-          opacity: 1,
-          fillOpacity: 0.7,
-        })
-          .bindPopup(`${team.name}<br/>Latest: ${new Date(latest.timestamp).toLocaleTimeString()}`)
-          .on('click', () => onTeamSelect(team))
-          .addTo(mapRef.current)
-
-        // Draw trail (last 10 points)
-        const trail = positions.slice(0, 10).reverse().map(p => [p.lat, p.lon])
-        if (trail.length > 1) {
-          window.L.polyline(trail, {
-            color: color,
-            weight: 2,
-            opacity: 0.5,
-            dashArray: '5, 5',
-          }).addTo(mapRef.current)
-        }
-      }
-    })
-
     // Add geofence polygons
     if (geofences && Array.isArray(geofences) && geofences.length > 0) {
       // Normalize geofences to array of polygons
@@ -236,7 +203,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
             opacity: 0.7,
             fill: true,
             fillColor: '#EF4444',
-            fillOpacity: 0.1,
+            fillOpacity: 0.2,
             interactive: true,
           })
             .bindPopup(`Geofence ${idx + 1}`)
@@ -270,6 +237,39 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
         }
       })
     }
+
+    // Add team position markers
+    teams.forEach((team) => {
+      const positions = teamPositions[team.id] || []
+      if (positions.length > 0) {
+        const latest = positions[0]
+        const color = team.color || '#3B82F6'
+
+        // Add circle marker for current position
+        window.L.circleMarker([latest.lat, latest.lon], {
+          radius: 8,
+          fillColor: color,
+          color: selectedTeam?.id === team.id ? '#000' : 'white',
+          weight: selectedTeam?.id === team.id ? 3 : 2,
+          opacity: 1,
+          fillOpacity: 0.7,
+        })
+          .bindPopup(`${team.name}<br/>Latest: ${new Date(latest.timestamp).toLocaleTimeString()}`)
+          .on('click', () => onTeamSelect(team))
+          .addTo(mapRef.current)
+
+        // Draw trail (last 10 points)
+        const trail = positions.slice(0, 10).reverse().map(p => [p.lat, p.lon])
+        if (trail.length > 1) {
+          window.L.polyline(trail, {
+            color: color,
+            weight: 2,
+            opacity: 0.5,
+            dashArray: '5, 5',
+          }).addTo(mapRef.current)
+        }
+      }
+    })
   }, [teams, teamPositions, geofences, waypoints, selectedTeam?.id, onTeamSelect])
 
   return (

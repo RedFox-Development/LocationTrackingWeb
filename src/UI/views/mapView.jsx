@@ -14,7 +14,7 @@ const createTeamIcon = (color, isHistoryDot = false) => {
     return L.icon({
       iconUrl: `data:image/svg+xml;base64,${btoa(`
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11">
-          <circle cx="12" cy="12" r="5" fill="${color}" opacity="0.7"/>
+          <circle cx="12" cy="12" r="5" fill="${color}" opacity="0.75"/>
         </svg>
       `)}`,
       iconSize: [11, 11],
@@ -30,9 +30,9 @@ const createTeamIcon = (color, isHistoryDot = false) => {
         <circle cx="12" cy="12" r="3" fill="white"/>
       </svg>
     `)}`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
+    iconSize: [24, 24],
+    iconAnchor: [16, 24],
+    popupAnchor: [0, -24],
   })
 }
 
