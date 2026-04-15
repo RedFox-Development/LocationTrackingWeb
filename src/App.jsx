@@ -15,6 +15,41 @@ import LogoutPage from './routes/LogoutPage'
 import { hasManageAccess } from './utils/eventAccess'
 import './UI/style/App.css'
 
+// Navigation component - outside App to avoid recreation
+const MainNav = ({ isLoggedIn, canManageEvent, location }) => {
+  const showFullNav = hasManageAccess(JSON.parse(localStorage.getItem('currentEvent') || '{}'))
+  
+  if (!isLoggedIn || !showFullNav) return null
+
+  return (
+    <nav className="app-header-nav">
+      {canManageEvent && (
+        <Link 
+          to="/event" 
+          className={location.pathname === '/event' ? 'active' : ''}
+          style={{ marginLeft: '1.5rem' }}
+        >
+          Event Dashboard
+        </Link>
+      )}
+      {canManageEvent && (
+        <Link 
+          to="/teams" 
+          className={location.pathname.startsWith('/teams') ? 'active' : ''}
+        >
+          Teams
+        </Link>
+      )}
+      <Link 
+        to="/event/map" 
+        className={location.pathname === '/event/map' ? 'active' : ''}
+      >
+        Map
+      </Link>
+    </nav>
+  )
+}
+
 const App = () => {
   const location = useLocation()
   // Initialize state from localStorage and update on pathname changes
@@ -27,7 +62,7 @@ const App = () => {
     return eventData ? JSON.parse(eventData) : null
   })
   const canManageEvent = hasManageAccess(currentEvent)
-  const isFieldOrganizer = currentEvent?.access_level === 'field'
+  const isFieldOrView = currentEvent?.access_level !== 'manage'
   const lockSomeFeatures = false;
 
   useEffect(() => {
@@ -61,67 +96,32 @@ const App = () => {
 
   // Don't show header on login and setup pages, show minimal header for field mode
   const showHeader = location.pathname !== '/login' && location.pathname !== '/setup'
-  const showFullNav = !isFieldOrganizer
+  const showFullNav = !isFieldOrView
 
   return (
     <>
       {showHeader && (
-        <header className="app-header">
-          <AppHeaderName />
-          <nav>
+        <div className="app-header-container">
+          <header className="app-header">
+            <div className="app-header-left">
+              <AppHeaderName/>
+            </div>
+            <div className="app-header-spacer"></div>
             {isLoggedIn && (
-              <>
-                {showFullNav && canManageEvent && (
-                  <Link 
-                    to="/event" 
-                    className={location.pathname === '/event' ? 'active' : ''}
-                  >
-                    Event Dashboard
-                  </Link>
-                )}
-                {showFullNav && canManageEvent && (
-                  <Link 
-                    to="/teams" 
-                    className={location.pathname.startsWith('/teams') ? 'active' : ''}
-                  >
-                    Teams
-                  </Link>
-                )}
-                {showFullNav && (
-                  <Link 
-                    to="/event/map" 
-                    className={location.pathname === '/event/map' ? 'active' : ''}
-                  >
-                    Map
-                  </Link>
-                )}
-                {isFieldOrganizer && (
-                  <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto'}}>
-                    <Link 
-                      to="/logout" 
-                      className="logout-link"
-                    >
-                      Logout
-                    </Link>
-                  </div>
-                )}
-                {!isFieldOrganizer && (
-                  <Link 
-                    to="/logout" 
-                    className="logout-link"
-                  >
-                    Logout
-                  </Link>
-                )}
-              </>
+              <nav className="app-header-right">
+                <Link to="/logout" className="logout-link">Logout</Link>
+              </nav>
             )}
             {!isLoggedIn && location.pathname !== '/setup' && (
-              <Link to="/setup" className="btn-link">
-                Get Started
-              </Link>
+              <div className="app-header-right">
+                <Link to="/setup" className="btn-link">Get Started</Link>
+              </div>
             )}
-          </nav>
-        </header>
+          </header>
+          {isLoggedIn && showFullNav && (
+            <MainNav isLoggedIn={isLoggedIn} canManageEvent={canManageEvent} location={location} />
+          )}
+        </div>
       )}
       <section className="app-content">
         <Routes>
@@ -163,7 +163,7 @@ const App = () => {
           <Route path="/logout" element={<LogoutPage />} />
         </Routes>
       </section>
-      {showHeader && !isFieldOrganizer && (
+      {showHeader && !isFieldOrView && (
         <footer className="app-footer">
           <p>Location Tracker Web Interface</p>
         </footer>

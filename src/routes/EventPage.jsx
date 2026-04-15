@@ -9,7 +9,7 @@ import { getImageDataUri } from '../utils/dataUri'
 import { EventHeader } from '../components/EventHeader'
 import GeofenceEditor from '../components/GeofenceEditor'
 import WaypointEditor from '../components/WaypointEditor'
-import ThreeColumnGrid from '../components/ThreeColumnGrid'
+import { ThreeColumnGrid } from '../components/ColumnGrids'
 import { hasManageAccess, mergeEventWithAuthFields } from '../utils/eventAccess'
 
 const EventPage = (props) => {
