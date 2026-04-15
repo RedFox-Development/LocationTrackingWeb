@@ -20,15 +20,14 @@ export const createWaypointIcon = (type = 'CHECKPOINT', isRequired = false, isVi
   let iconAnchorY = 20
   
   if (normalizedType === 'START') {
-    // Down-pointing triangle
-    shapeMarkup = `<path d="M12 2 L22 20 L2 20 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.2"/>`
-
+    // Down-pointing triangle (point at bottom)
+    shapeMarkup = `<path d="M12 22 L2 2 L22 2 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.3"/>`
   } else if (normalizedType === 'END') {
     // Diamond shape
-    shapeMarkup = `<path d="M12 2 L22 12 L12 22 L2 12 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.2"/>`
+    shapeMarkup = `<path d="M12 2 L22 12 L12 22 L2 12 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.3"/>`
   } else {
     // Default: Checkpoint - circle (traditional marker shape)
-    shapeMarkup = `<circle cx="12" cy="12" r="10" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.2"/>`
+    shapeMarkup = `<circle cx="12" cy="12" r="10" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.3"/>`
   }
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">${shapeMarkup}</svg>`
