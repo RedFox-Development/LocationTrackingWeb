@@ -1,4 +1,6 @@
+/* eslint-disable no-unused-vars */
 import { useEffect, useRef, useState } from 'react'
+import { createWaypointIcon } from '../utils/waypointIcons'
 
 /**
  * FieldMap - Interactive map showing team locations and geofence boundaries
@@ -152,8 +154,8 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
     // Group positions by team ID from the updates already provided
     const positions = {}
     teams.forEach(team => {
-      if (team.updates && Array.isArray(team.updates)) {
-        positions[team.id] = team.updates.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      if (team.updates && Array.isArray(team.updates) && team.updates.length > 0) {
+        positions[team.id] = [...team.updates].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
         console.log(`[FieldMap] Team ${team.name}: ${positions[team.id].length} position updates`)
       } else {
         positions[team.id] = []
@@ -162,6 +164,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
     })
     
     console.log('[FieldMap] Updated teamPositions:', Object.keys(positions).length, 'teams')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTeamPositions(positions)
   }, [teams])
 
@@ -198,12 +201,12 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
         if (points.length >= 3) {
           console.log(`[FieldMap] Rendering polygon ${idx} with ${points.length} points`)
           window.L.polyline(points, {
-            color: '#EF4444',
+            color: '#995511',
             weight: 2,
             opacity: 0.7,
             fill: true,
-            fillColor: '#EF4444',
-            fillOpacity: 0.2,
+            fillColor: '#995511',
+            fillOpacity: 0.1,
             interactive: true,
           })
             .bindPopup(`Geofence ${idx + 1}`)
@@ -224,15 +227,17 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
     if (waypoints && Array.isArray(waypoints)) {
       waypoints.forEach((wp) => {
         if (wp.lat && wp.lon) {
-          window.L.circleMarker([wp.lat, wp.lon], {
-            radius: 5,
-            fillColor: '#FFB800',
-            color: '#8B7000',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.8,
-          })
-            .bindPopup(`${wp.name}${wp.is_required ? ' (Required)' : ''}`)
+          const icon = createWaypointIcon(wp.type, wp.is_required, false)
+          let popupText = `<strong>${wp.name}</strong><br/>Type: <span style="text-transform: capitalize;">${wp.type}</span>`
+          if (wp.pointValue > 0) {
+            popupText += `<br/>Points: ${wp.pointValue}`
+          }
+          if (wp.is_required) {
+            popupText += '<br/><span style="color: #dc2626; font-weight: bold;">Required</span>'
+          }
+          
+          window.L.marker([wp.lat, wp.lon], { icon })
+            .bindPopup(popupText)
             .addTo(mapRef.current)
         }
       })

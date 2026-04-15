@@ -18,6 +18,7 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isU
 
   useEffect(() => {
     if (teams.length > 0 && !selectedTeam) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedTeam(teams[0])
     }
   }, [teams, selectedTeam])

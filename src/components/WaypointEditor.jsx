@@ -62,6 +62,8 @@ function WaypointEditor({ event }) {
 
   const [editingWaypoint, setEditingWaypoint] = useState(null)
   const [editName, setEditName] = useState('')
+  const [editType, setEditType] = useState('checkpoint')
+  const [editPointValue, setEditPointValue] = useState(0)
   const [editIsRequired, setEditIsRequired] = useState(false)
 
   const { data, loading, error, refetch } = useQuery(GET_WAYPOINTS, {
@@ -150,6 +152,8 @@ function WaypointEditor({ event }) {
               name: draft.name.trim(),
               lat: draft.lat,
               lon: draft.lon,
+              type: draft.type || 'checkpoint',
+              pointValue: draft.pointValue || 0,
               isRequired: Boolean(draft.is_required),
             },
           })
@@ -188,12 +192,16 @@ function WaypointEditor({ event }) {
   const handleStartEdit = (waypoint) => {
     setEditingWaypoint(waypoint.id)
     setEditName(waypoint.name)
+    setEditType(waypoint.type || 'checkpoint')
+    setEditPointValue(waypoint.pointValue || 0)
     setEditIsRequired(Boolean(waypoint.is_required))
   }
 
   const handleCancelEdit = () => {
     setEditingWaypoint(null)
     setEditName('')
+    setEditType('checkpoint')
+    setEditPointValue(0)
     setEditIsRequired(false)
   }
 
@@ -209,6 +217,8 @@ function WaypointEditor({ event }) {
           eventId: event?.id,
           keycode: event?.keycode,
           name: editName.trim(),
+          type: editType,
+          pointValue: editPointValue,
           isRequired: editIsRequired,
         },
       })
@@ -338,6 +348,28 @@ function WaypointEditor({ event }) {
                           disabled={isSaving}
                         />
                       </div>
+                      <div className="form-group" style={{ marginBottom: '0.6rem' }}>
+                        <label>Type</label>
+                        <select
+                          value={draft.type || 'checkpoint'}
+                          onChange={(e) => handleDraftChange(draft.tempId, 'type', e.target.value)}
+                          disabled={isSaving}
+                        >
+                          <option value="start">Start</option>
+                          <option value="checkpoint">Checkpoint</option>
+                          <option value="end">End</option>
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: '0.6rem' }}>
+                        <label>Points</label>
+                        <input
+                          type="number"
+                          value={draft.pointValue || 0}
+                          onChange={(e) => handleDraftChange(draft.tempId, 'pointValue', parseInt(e.target.value) || 0)}
+                          disabled={isSaving}
+                          min="0"
+                        />
+                      </div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         <input
                           type="checkbox"
@@ -421,6 +453,24 @@ function WaypointEditor({ event }) {
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           disabled={isSaving}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                        <label>Type</label>
+                        <select value={editType} onChange={(e) => setEditType(e.target.value)} disabled={isSaving}>
+                          <option value="start">Start</option>
+                          <option value="checkpoint">Checkpoint</option>
+                          <option value="end">End</option>
+                        </select>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                        <label>Points</label>
+                        <input
+                          type="number"
+                          value={editPointValue}
+                          onChange={(e) => setEditPointValue(parseInt(e.target.value) || 0)}
+                          disabled={isSaving}
+                          min="0"
                         />
                       </div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>

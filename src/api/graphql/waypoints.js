@@ -8,6 +8,8 @@ export const GET_WAYPOINTS = gql`
       name
       lat
       lon
+      type
+      pointValue
       is_required
       created_at
     }
@@ -38,6 +40,8 @@ export const CREATE_WAYPOINT = gql`
     $name: String!
     $lat: Float!
     $lon: Float!
+    $type: String
+    $pointValue: Int
     $isRequired: Boolean
   ) {
     createWaypoint(
@@ -46,6 +50,8 @@ export const CREATE_WAYPOINT = gql`
       name: $name
       lat: $lat
       lon: $lon
+      type: $type
+      pointValue: $pointValue
       is_required: $isRequired
     ) {
       id
@@ -53,6 +59,8 @@ export const CREATE_WAYPOINT = gql`
       name
       lat
       lon
+      type
+      pointValue
       is_required
       created_at
     }
@@ -68,6 +76,8 @@ export const UPDATE_WAYPOINT = gql`
     $isRequired: Boolean
     $lat: Float
     $lon: Float
+    $type: String
+    $pointValue: Int
   ) {
     updateWaypoint(
       waypoint_id: $waypointId
@@ -77,12 +87,16 @@ export const UPDATE_WAYPOINT = gql`
       is_required: $isRequired
       lat: $lat
       lon: $lon
+      type: $type
+      pointValue: $pointValue
     ) {
       id
       event_id
       name
       lat
       lon
+      type
+      pointValue
       is_required
       created_at
     }
@@ -105,6 +119,8 @@ export const DELETE_WAYPOINT = gql`
       name
       lat
       lon
+      type
+      pointValue
       is_required
       created_at
     }

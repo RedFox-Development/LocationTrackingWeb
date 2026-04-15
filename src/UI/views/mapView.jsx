@@ -6,6 +6,7 @@ import { GET_UPDATES } from '../../api/graphql/team'
 import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
 import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
 import { hasManageAccess } from '../../utils/eventAccess'
+import { createWaypointIcon } from '../../utils/waypointIcons'
 import 'leaflet/dist/leaflet.css'
 import { EventHeader } from '../../components/EventHeader'
 
@@ -36,23 +37,7 @@ const createTeamIcon = (color, isHistoryDot = false) => {
   })
 }
 
-const createWaypointIcon = (isRequired, isVisited) => {
-  const fillColor = isVisited ? '#16a34a' : isRequired ? '#dc2626' : '#9ca3af'
-  const strokeColor = isRequired ? '#7f1d1d' : '#4b5563'
-  const innerColor = isRequired ? '#fff' : isVisited ? '#14532d' : '#374151'
 
-  return L.icon({
-    iconUrl: `data:image/svg+xml;base64,${btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 4.61 5.07 10.83 6.02 11.96a1.26 1.26 0 0 0 1.96 0C13.93 19.83 19 13.61 19 9c0-3.87-3.13-7-7-7z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.2"/>
-        <circle cx="12" cy="9" r="3" fill="${innerColor}"/>
-      </svg>
-    `)}`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 23],
-    popupAnchor: [0, -21],
-  })
-}
 
 const normalizeTimestamp = (value) => {
   if (!value) return value
@@ -608,12 +593,16 @@ function MapView({ event, teams }) {
             <Marker
               key={`waypoint-${waypoint.id}`}
               position={[waypoint.lat, waypoint.lon]}
-              icon={createWaypointIcon(Boolean(waypoint.is_required), isVisitedByAny)}
+              icon={createWaypointIcon(waypoint.type, waypoint.is_required, isVisitedByAny)}
             >
               <Popup>
                 <div>
                   <strong>{waypoint.name}</strong>
+                  <p>Type: <span className='capitalize'>{waypoint.type}</span></p>
                   <p>{waypoint.is_required ? 'Required waypoint' : 'Optional waypoint'}</p>
+                  {waypoint.pointValue > 0 && (
+                    <p>Points: {waypoint.pointValue}</p>
+                  )}
                   <p>
                     Visits: {visitedTeams}/{teams.length}
                   </p>
@@ -725,7 +714,7 @@ function MapView({ event, teams }) {
         </div>
       )}
 
-      {canManageEvent && (
+      {canManageEvent && waypoints?.length > 0 && (
         <div className="waypoint-score-panel">
           <div className="waypoint-score-header">
             <div>

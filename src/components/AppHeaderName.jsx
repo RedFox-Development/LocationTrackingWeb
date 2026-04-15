@@ -9,7 +9,10 @@ const AppHeaderName = () => {
     <div className="app-header-name">
       <img src={appIcon} alt="App Logo" className="app-logo" />
       {isFieldMode ? (
-        <h1 className="field-mode-title">Location Tracker – Field Operations</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
+          <h1 className="field-mode-title">Location Tracker</h1>
+          <h3>Field Operations</h3>
+        </div>
       ) : (
         <h1>Location Tracker - Event Manager</h1>
       )}
