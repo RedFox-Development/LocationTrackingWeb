@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import FieldMap from './FieldMap'
 import GeofenceAlertPanel from './GeofenceAlertPanel'
 import TeamStatusBar from './TeamStatusBar'
+import { isPointInPolygon } from '../utils/geofence'
 import '../UI/style/field-mode.css'
 
 /**
@@ -13,6 +14,8 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isU
   const [alerts, setAlerts] = useState([])
   const [isFullScreen, setIsFullScreen] = useState(false)
   const [activeTab, setActiveTab] = useState('alerts')
+  const geofenceBreachesRef = useRef({})
+  const alertIdCounterRef = useRef(0)
 
   console.log('[FieldDashboard] Received props - event:', event?.name, 'teams:', teams?.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length, 'isUpdating:', isUpdating)
 
@@ -22,6 +25,61 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isU
       setSelectedTeam(teams[0])
     }
   }, [teams, selectedTeam])
+
+  // Generate alerts from team positions and geofence
+  useEffect(() => {
+    if (!geofences || geofences.length === 0 || !Array.isArray(teams) || teams.length === 0) {
+      return
+    }
+
+    // Normalize geofences to single polygon
+    let activeGeofence = null
+    if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
+      // Single polygon: [[lat1, lon1], [lat2, lon2], ...]
+      activeGeofence = geofences
+    } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
+      // Multiple polygons: use first one
+      activeGeofence = geofences[0]
+    }
+
+    if (!activeGeofence || activeGeofence.length < 3) return
+
+    const newAlerts = []
+    const breaches = { ...geofenceBreachesRef.current }
+
+    // Check geofence breaches
+    teams.forEach((team) => {
+      if (!team.updates || team.updates.length === 0) return
+
+      const latestUpdate = team.updates[0]
+      if (!latestUpdate.lat || !latestUpdate.lon) return
+
+      const isInside = isPointInPolygon(latestUpdate.lat, latestUpdate.lon, activeGeofence)
+
+      if (!isInside) {
+        if (!breaches[team.id]) {
+          // New breach detected
+          const alertId = `breach-${Date.now()}-${alertIdCounterRef.current++}`
+          newAlerts.push({
+            id: alertId,
+            type: 'geofence-violation',
+            title: `${team.name} Outside Geofence`,
+            message: `Position: [${latestUpdate.lat.toFixed(4)}, ${latestUpdate.lon.toFixed(4)}]`,
+            timestamp: latestUpdate.timestamp,
+          })
+          breaches[team.id] = true
+        }
+      } else if (breaches[team.id]) {
+        // Team returned to geofence
+        delete breaches[team.id]
+      }
+    })
+
+    geofenceBreachesRef.current = breaches
+    if (newAlerts.length > 0) {
+      setAlerts((prevAlerts) => [...newAlerts, ...prevAlerts].slice(0, 20)) // Keep last 20 alerts
+    }
+  }, [teams, geofences, waypoints])
 
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen)

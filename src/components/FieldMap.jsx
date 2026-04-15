@@ -14,7 +14,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   const [teamPositions, setTeamPositions] = useState({})
 
   console.log('[FieldMap] Received props - teams:', teams.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length)
-  console.log('[FieldMap] Geofences details:', geofences?.map(g => ({ lat: g.lat, lon: g.lon, radius: g.radius, name: g.name })))
+  console.log('[FieldMap] Geofences data:', geofences)
 
   // Initialize map with Leaflet
   useEffect(() => {
