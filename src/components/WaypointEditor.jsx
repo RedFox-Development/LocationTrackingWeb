@@ -351,20 +351,20 @@ function WaypointEditor({ event }) {
                       <div className="form-group" style={{ marginBottom: '0.6rem' }}>
                         <label>Type</label>
                         <select
-                          value={draft.type || 'checkpoint'}
+                          value={draft.type || 'CHECKPOINT'}
                           onChange={(e) => handleDraftChange(draft.tempId, 'type', e.target.value)}
                           disabled={isSaving}
                         >
-                          <option value="start">Start</option>
-                          <option value="checkpoint">Checkpoint</option>
-                          <option value="end">End</option>
+                          <option value="START">Start</option>
+                          <option value="CHECKPOINT">Checkpoint</option>
+                          <option value="END">End</option>
                         </select>
                       </div>
                       <div className="form-group" style={{ marginBottom: '0.6rem' }}>
                         <label>Points</label>
                         <input
                           type="number"
-                          value={draft.pointValue || 0}
+                          value={draft.pointValue || 1}
                           onChange={(e) => handleDraftChange(draft.tempId, 'pointValue', parseInt(e.target.value) || 0)}
                           disabled={isSaving}
                           min="0"
