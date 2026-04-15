@@ -17,27 +17,25 @@ export const createWaypointIcon = (type = 'CHECKPOINT', isRequired = false, isVi
 
   // Determine marker shape based on waypoint type
   let shapeMarkup = ''
-  let iconAnchorY = 28
+  let iconAnchorY = 20
   
   if (normalizedType === 'START') {
     // Down-pointing triangle
-    shapeMarkup = `<path d="M12 2 L22 20 L2 20 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1" fill-opacity="0.2"/>`
-    iconAnchorY = 20
+    shapeMarkup = `<path d="M12 2 L22 20 L2 20 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.2"/>`
+
   } else if (normalizedType === 'END') {
     // Diamond shape
-    shapeMarkup = `<path d="M12 2 L22 12 L12 22 L2 12 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1" fill-opacity="0.2"/>`
-    iconAnchorY = 22
+    shapeMarkup = `<path d="M12 2 L22 12 L12 22 L2 12 Z" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.2"/>`
   } else {
     // Default: Checkpoint - circle (traditional marker shape)
-    shapeMarkup = `<circle cx="12" cy="12" r="10" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1" fill-opacity="0.2"/>`
-    iconAnchorY = 22
+    shapeMarkup = `<circle cx="12" cy="12" r="10" fill="${fillColor}" stroke="${strokeColor}" stroke-width="2" fill-opacity="0.2"/>`
   }
 
   const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">${shapeMarkup}</svg>`
 
   return L.icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(svgMarkup)}`,
-    iconSize: [28, 28],
+    iconSize: [24, 24],
     iconAnchor: [14, iconAnchorY],
     popupAnchor: [0, -iconAnchorY],
   })
