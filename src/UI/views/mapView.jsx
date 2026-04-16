@@ -7,35 +7,9 @@ import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
 import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
 import { hasManageAccess } from '../../utils/eventAccess'
 import { createWaypointIcon } from '../../utils/waypointIcons'
+import { createTeamIcon, getTeamTrailStyle, getHistoryDotStyle } from '../../utils/teamIcons'
 import 'leaflet/dist/leaflet.css'
 import { EventHeader } from '../../components/EventHeader'
-
-const createTeamIcon = (color, isHistoryDot = false) => {
-  if (isHistoryDot) {
-    return L.icon({
-      iconUrl: `data:image/svg+xml;base64,${btoa(`
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="11" height="11">
-          <circle cx="12" cy="12" r="5" fill="${color}" opacity="0.75"/>
-        </svg>
-      `)}`,
-      iconSize: [11, 11],
-      iconAnchor: [5.5, 5.5],
-      popupAnchor: [0, -5.5],
-    })
-  }
-
-  return L.icon({
-    iconUrl: `data:image/svg+xml;base64,${btoa(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
-        <circle cx="12" cy="12" r="11" fill="${color}" stroke="white" stroke-width="2"/>
-        <circle cx="12" cy="12" r="3" fill="white"/>
-      </svg>
-    `)}`,
-    iconSize: [24, 24],
-    iconAnchor: [16, 24],
-    popupAnchor: [0, -24],
-  })
-}
 
 const normalizeTimestamp = (value) => {
   if (!value) return value
@@ -614,23 +588,22 @@ function MapView({ event, teams }) {
 
           const { latest, history, teamName, teamColor } = locationData
           const hasBreached = geofenceBreaches[teamId]
+          const displayColor = hasBreached ? '#ff6b6b' : teamColor
+          const trailStyle = getTeamTrailStyle(displayColor)
 
           return (
             <Fragment key={teamId}>
               {showHistory && history && history.length > 1 && (
                 <Polyline
                   positions={history.map((loc) => [loc.lat, loc.lon])}
-                  color={hasBreached ? '#ff6b6b' : teamColor}
-                  weight={2}
-                  opacity={0.5}
-                  dashArray="5, 5"
+                  {...trailStyle}
                 />
               )}
 
               {latest && (
                 <Marker
                   position={[latest.lat, latest.lon]}
-                  icon={createTeamIcon(hasBreached ? '#ff6b6b' : teamColor)}
+                  icon={createTeamIcon(teamName, teamColor, false, hasBreached, latest.timestamp)}
                 >
                   <Popup>
                     <div className="marker-popup">
@@ -658,20 +631,23 @@ function MapView({ event, teams }) {
         })}
 
         {showHistory &&
-          historyDots.map((dot) => (
-            <CircleMarker
-              key={dot.key}
-              center={[dot.lat, dot.lon]}
-              radius={3}
-              pathOptions={{
-                color: dot.color,
-                fillColor: dot.color,
-                fillOpacity: 0.65,
-                opacity: 0.85,
-                weight: 1,
-              }}
-            />
-          ))}
+          historyDots.map((dot) => {
+            const dotStyle = getHistoryDotStyle(dot.color)
+            return (
+              <CircleMarker
+                key={dot.key}
+                center={[dot.lat, dot.lon]}
+                radius={dotStyle.radius}
+                pathOptions={{
+                  color: dotStyle.color,
+                  fillColor: dotStyle.fillColor,
+                  fillOpacity: dotStyle.fillOpacity,
+                  opacity: dotStyle.opacity,
+                  weight: dotStyle.weight,
+                }}
+              />
+            )
+          })}
       </MapContainer>
     )
   }

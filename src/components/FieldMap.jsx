@@ -1,6 +1,8 @@
 /* eslint-disable no-unused-vars */
 import { useEffect, useRef, useState } from 'react'
 import { createWaypointIcon } from '../utils/waypointIcons'
+import { createTeamIcon, getTeamTrailStyle } from '../utils/teamIcons'
+import { isPointInPolygon } from '../utils/geofence'
 
 /**
  * FieldMap - Interactive map showing team locations and geofence boundaries
@@ -28,7 +30,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
         maxZoom: 19,
       }).addTo(mapRef.current)
     }
-  }, [])
+  }, [mapCenter.lat, mapCenter.lng, mapZoom])
 
   // Center map on geofences if available
   useEffect(() => {
@@ -249,29 +251,42 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
       if (positions.length > 0) {
         const latest = positions[0]
         const color = team.color || '#3B82F6'
+        const isSelected = selectedTeam?.id === team.id
 
-        // Add circle marker for current position
-        window.L.circleMarker([latest.lat, latest.lon], {
-          radius: 8,
-          fillColor: color,
-          color: selectedTeam?.id === team.id ? '#000' : 'white',
-          weight: selectedTeam?.id === team.id ? 3 : 2,
-          opacity: 1,
-          fillOpacity: 0.7,
-        })
-          .bindPopup(`${team.name}<br/>Latest: ${new Date(latest.timestamp).toLocaleTimeString()}`)
+        // Check if team is inside geofence
+        let isOutsideGeofence = false
+        if (geofences && Array.isArray(geofences)) {
+          let polygons = []
+          if (geofences.length > 0) {
+            if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
+              polygons = [geofences]
+            } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
+              polygons = geofences
+            }
+          }
+
+          // Team is outside if there's a geofence and the position is not in any of them
+          if (polygons.length > 0) {
+            isOutsideGeofence = !polygons.some(polygon => 
+              isPointInPolygon(latest.lat, latest.lon, polygon)
+            )
+          }
+        }
+
+        // Create custom team icon with dynamic coloring
+        const icon = createTeamIcon(team.name, color, isSelected, isOutsideGeofence, latest.timestamp)
+
+        // Add team marker
+        window.L.marker([latest.lat, latest.lon], { icon })
+          .bindPopup(`<strong>${team.name}</strong><br/>Latest: ${new Date(latest.timestamp).toLocaleTimeString()}`)
           .on('click', () => onTeamSelect(team))
           .addTo(mapRef.current)
 
-        // Draw trail (last 10 points)
+        // Draw trail (last 10 points) with team color
         const trail = positions.slice(0, 10).reverse().map(p => [p.lat, p.lon])
         if (trail.length > 1) {
-          window.L.polyline(trail, {
-            color: color,
-            weight: 2,
-            opacity: 0.5,
-            dashArray: '5, 5',
-          }).addTo(mapRef.current)
+          const trailStyle = getTeamTrailStyle(color)
+          window.L.polyline(trail, trailStyle).addTo(mapRef.current)
         }
       }
     })
