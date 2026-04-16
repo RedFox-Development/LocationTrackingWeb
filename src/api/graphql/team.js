@@ -50,20 +50,6 @@ export const GET_TEAMS = gql`
   }
 `
 
-// Field operations teams query - teams only, updates fetched separately
-// Reduces per-team data transfer for faster polling
-export const GET_TEAMS_FIELD_OPS = gql`
-  query GetTeamsFieldOps($eventId: Int!) {
-    teams(event_id: $eventId) {
-      id
-      name
-      color
-      event_id
-      activated
-    }
-  }
-`
-
 export const UPDATE_TEAM_COLOR = gql`
   mutation UpdateTeamColor($teamId: Int!, $eventId: Int!, $keycode: String!, $color: String!) {
     updateTeamColor(team_id: $teamId, event_id: $eventId, keycode: $keycode, color: $color) {

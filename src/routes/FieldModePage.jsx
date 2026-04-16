@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useApolloClient } from '@apollo/client/react'
-import { GET_TEAMS_FIELD_OPS, GET_UPDATES } from '../api/graphql/team'
+import { GET_TEAMS, GET_UPDATES } from '../api/graphql/team'
 import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
 
@@ -75,8 +75,8 @@ function FieldModePage() {
     setGeofences(parsedGeofences)
   }, [currentEvent?.geofence_data, currentEvent?.id])
 
-  // Fetch teams (lightweight - no updates)
-  const { data: teamsData, loading: teamsLoading, error: teamsError, refetch: refetchTeams } = useQuery(GET_TEAMS_FIELD_OPS, {
+  // Fetch teams for this event
+  const { data: teamsData, loading: teamsLoading, error: teamsError, refetch: refetchTeams } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id },
     skip: !currentEvent?.id,
     fetchPolicy: 'cache-and-network',

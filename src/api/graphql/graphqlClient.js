@@ -46,7 +46,7 @@ export const graphqlClient = new ApolloClient({
     credentials: 'include'
   }),
   cache: new InMemoryCache(),
-  connectToDevTools: true,
+  connectToDevTools: false,
 })
 
 export default graphqlClient
