@@ -248,11 +248,54 @@ export const EXPORT_EVENT_DATA = gql`
         id
         name
         color
+        locationCount
         locations {
           id
           lat
           lon
           timestamp
+        }
+      }
+      waypoints {
+        id
+        name
+        lat
+        lon
+        type
+        point_value
+        is_required
+        created_at
+      }
+      analytics {
+        team_metrics {
+          team_id
+          team_name
+          team_color
+          total_updates
+          distance_traveled_meters
+          duration_seconds
+          avg_speed_mps
+          max_speed_mps
+          avg_bearing
+          kinematic_entropy
+          path_sinuosity
+        }
+        dwell_points_by_team
+        heatmap {
+          grid_cells {
+            lat
+            lon
+            intensity
+          }
+          num_cells
+          max_intensity
+          min_intensity
+          total_non_stationary_updates
+          event_centroid {
+            lat
+            lon
+          }
+          cellSizeMeters
         }
       }
       startDate

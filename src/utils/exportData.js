@@ -127,6 +127,15 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
 
     const exportData = result.data.exportEventData
     console.log('[exportData] Export data received, teams:', exportData.teams?.length, 'waypoints:', exportData.waypoints?.length)
+    
+    // Log location counts for each team
+    if (exportData.teams && exportData.teams.length > 0) {
+      console.log('[exportData] Team location data:')
+      exportData.teams.forEach(team => {
+        const locCount = team.locations ? team.locations.length : 0
+        console.log(`  - ${team.name}: ${locCount} locations`)
+      })
+    }
 
     let waypoints = []
     try {
@@ -219,6 +228,32 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
   if (waypoints.length > 0) {
     zip.file('waypoints.json', JSON.stringify(waypoints, null, 2))
     zip.file('waypoints.geojson', JSON.stringify(waypointsToGeoJSON(waypoints), null, 2))
+  }
+
+  // Add analytics if available
+  if (exportData.analytics) {
+    const analyticsData = {
+      team_metrics: exportData.analytics.team_metrics || [],
+      heatmap: exportData.analytics.heatmap || {},
+      dwell_points_summary: (() => {
+        try {
+          const dwellPoints = JSON.parse(exportData.analytics.dwell_points_by_team || '{}')
+          return dwellPoints
+        } catch {
+          return {}
+        }
+      })(),
+    }
+    zip.file('analytics/event-analytics.json', JSON.stringify(analyticsData, null, 2))
+    
+    // Save team metrics as CSV
+    if (exportData.analytics.team_metrics && exportData.analytics.team_metrics.length > 0) {
+      const csvHeader = 'Team ID,Team Name,Total Updates,Distance (m),Duration (s),Avg Speed (m/s),Max Speed (m/s),Entropy,Sinuosity\n'
+      const csvRows = exportData.analytics.team_metrics.map(metric =>
+        `${metric.team_id},"${metric.team_name}",${metric.total_updates},${metric.distance_traveled_meters},${metric.duration_seconds},${metric.avg_speed_mps},${metric.max_speed_mps},${metric.kinematic_entropy},${metric.path_sinuosity}`
+      ).join('\n')
+      zip.file('analytics/team-metrics.csv', csvHeader + csvRows)
+    }
   }
 
   // Add teams.json with summary
