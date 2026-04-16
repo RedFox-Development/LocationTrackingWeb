@@ -104,50 +104,61 @@ const waypointsToGeoJSON = (waypoints) => {
  * @returns {Promise<Blob>} ZIP file as a Blob
  */
 export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => {
-  // Fetch data from API using GraphQL client
-  const { data } = await graphqlClient.query({
-    query: EXPORT_EVENT_DATA,
-    variables: {
-      eventId,
-      keycode,
-      startDate: startDate ? formatDateForFilename(startDate) : undefined,
-      endDate: endDate ? formatDateForFilename(endDate) : undefined
-    },
-    fetchPolicy: 'no-cache'
-  })
-
-  const exportData = data.exportEventData
-
-  let waypoints = []
   try {
-    const { data: waypointData } = await graphqlClient.query({
-      query: GET_WAYPOINTS,
-      variables: { eventId },
-      fetchPolicy: 'no-cache',
+    console.log('[exportData] Starting export with:', { eventId, keycode: '***', startDate, endDate })
+    
+    // Fetch data from API using GraphQL client
+    const result = await graphqlClient.query({
+      query: EXPORT_EVENT_DATA,
+      variables: {
+        eventId,
+        keycode,
+        startDate: startDate ? formatDateForFilename(startDate) : undefined,
+        endDate: endDate ? formatDateForFilename(endDate) : undefined
+      },
+      fetchPolicy: 'no-cache'
     })
-    waypoints = waypointData?.waypoints || []
-  } catch (error) {
-    console.warn('[exportData] Failed to load waypoints for export:', error)
-  }
 
-  const zip = new JSZip()
+    console.log('[exportData] Query result:', result)
+    
+    if (!result?.data?.exportEventData) {
+      throw new Error('No export data returned from server')
+    }
 
-  // Add metadata.json
-  const metadata = {
-    event: {
-      id: exportData.event.id,
-      name: exportData.event.name,
-      organizationName: exportData.event.organization_name,
-      expirationDate: exportData.event.expiration_date,
-      geofencePointCount: (() => {
-        try {
-          const parsed = JSON.parse(exportData.event.geofence_data || 'null')
-          return Array.isArray(parsed) ? parsed.length : 0
-        } catch {
-          return 0
-        }
-      })(),
-    },
+    const exportData = result.data.exportEventData
+    console.log('[exportData] Export data received, teams:', exportData.teams?.length, 'waypoints:', exportData.waypoints?.length)
+
+    let waypoints = []
+    try {
+      const { data: waypointData } = await graphqlClient.query({
+        query: GET_WAYPOINTS,
+        variables: { eventId },
+        fetchPolicy: 'no-cache',
+      })
+      waypoints = waypointData?.waypoints || []
+      console.log('[exportData] Waypoints loaded:', waypoints.length)
+    } catch (error) {
+      console.warn('[exportData] Failed to load waypoints for export:', error)
+    }
+
+    const zip = new JSZip()
+
+    // Add metadata.json
+    const metadata = {
+      event: {
+        id: exportData.event.id,
+        name: exportData.event.name,
+        organizationName: exportData.event.organization_name,
+        expirationDate: exportData.event.expiration_date,
+        geofencePointCount: (() => {
+          try {
+            const parsed = JSON.parse(exportData.event.geofence_data || 'null')
+            return Array.isArray(parsed) ? parsed.length : 0
+          } catch {
+            return 0
+          }
+        })(),
+      },
     exportDate: new Date().toISOString(),
     dateRange: {
       start: startDate ? startDate.toISOString() : 'all',
@@ -240,7 +251,18 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
   }
 
   // Generate ZIP file
-  return await zip.generateAsync({ type: 'blob' })
+  const blob = await zip.generateAsync({ type: 'blob' })
+  console.log('[exportData] ZIP file generated successfully, size:', blob.size, 'bytes')
+  return blob
+  } catch (error) {
+    console.error('[exportData] Export failed:', error)
+    console.error('[exportData] Error details:', {
+      message: error?.message,
+      networkError: error?.networkError,
+      graphQLErrors: error?.graphQLErrors,
+    })
+    throw new Error(`Export failed: ${error?.message || error?.graphQLErrors?.[0]?.message || 'Unknown error'}`)
+  }
 }
 
 /**

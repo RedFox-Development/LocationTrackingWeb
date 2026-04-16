@@ -5,6 +5,7 @@ import { GET_EVENT } from '../api/graphql/event'
 import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { graphqlClient } from '../api/graphql/graphqlClient'
+// eslint-disable-next-line no-unused-vars
 import { hasManageAccess, mergeEventWithAuthFields } from '../utils/eventAccess'
 
 function LoginPage() {
@@ -15,6 +16,7 @@ function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isBootstrappingEvent, setIsBootstrappingEvent] = useState(false)
   const [useQRMode, setUseQRMode] = useState(false)
+  // eslint-disable-next-line no-unused-vars
   const [qrReaderInitialized, setQrReaderInitialized] = useState(false)
   const qrScannerRef = useRef(null)
 

@@ -418,15 +418,23 @@ const EventPage = (props) => {
     setSuccess(null)
 
     try {
+      console.log('[EventPage] Starting export with dates:', { exportStartDate, exportEndDate })
       const startDate = exportStartDate ? new Date(exportStartDate) : undefined
       const endDate = exportEndDate ? new Date(exportEndDate) : undefined
 
+      console.log('[EventPage] Calling exportEventAsZip with eventId:', event.id)
       const zipBlob = await exportEventAsZip(
         event.id,
         event.keycode,
         startDate,
         endDate
       )
+
+      if (!zipBlob || zipBlob.size === 0) {
+        throw new Error('Export produced empty file')
+      }
+
+      console.log('[EventPage] Export successful, blob size:', zipBlob.size)
 
       // Trigger download
       const url = URL.createObjectURL(zipBlob)
@@ -439,8 +447,15 @@ const EventPage = (props) => {
       document.body.removeChild(a)
 
       setSuccess('Event data exported successfully!')
+      console.log('[EventPage] Export download completed')
     } catch (err) {
-      setError(err.message || 'Failed to export data')
+      console.error('[EventPage] Export error:', err)
+      console.error('[EventPage] Error details:', {
+        message: err?.message,
+        networkError: err?.networkError,
+        graphQLErrors: err?.graphQLErrors,
+      })
+      setError(err?.message || 'Failed to export data')
     } finally {
       setExporting(false)
     }
