@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useApolloClient } from '@apollo/client/react'
 import { GET_TEAMS, GET_UPDATES } from '../api/graphql/team'
+import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
 
@@ -75,13 +76,37 @@ function FieldModePage() {
     setGeofences(parsedGeofences)
   }, [currentEvent?.geofence_data, currentEvent?.id])
 
-  // Fetch teams for this event
+  // Fetch teams for this event (poll every 60 seconds)
   const { data: teamsData, loading: teamsLoading, error: teamsError, refetch: refetchTeams } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id },
     skip: !currentEvent?.id,
     fetchPolicy: 'cache-and-network',
     notifyOnNetworkStatusChange: true,
+    pollInterval: 60000, // Poll every 60 seconds for field operations
   })
+
+  if (teamsError) {
+    console.error('[FieldModePage] Teams query error:', teamsError?.message)
+  }
+  if (teamsData?.teams) {
+    console.log('[FieldModePage] Teams fetched:', teamsData.teams.length, 'teams')
+  }
+
+  // Fetch waypoints for this event (poll every 5 minutes)
+  const { data: waypointsData, error: waypointsError } = useQuery(GET_WAYPOINTS, {
+    variables: { eventId: currentEvent?.id },
+    skip: !currentEvent?.id,
+    fetchPolicy: 'cache-and-network',
+    pollInterval: 300000, // Poll every 5 minutes (300 seconds) for field operations
+  })
+
+  if (waypointsError) {
+    console.error('[FieldModePage] Waypoints query error:', waypointsError?.message)
+  }
+  if (waypointsData?.waypoints) {
+    console.log('[FieldModePage] Waypoints fetched:', waypointsData.waypoints.length, 'waypoints')
+    setCurrentWaypoints(waypointsData.waypoints)
+  }
 
   // Fetch location updates for all teams with optimized time window
   const fetchLocationUpdates = async (teams) => {
@@ -151,7 +176,13 @@ function FieldModePage() {
 
   // Trigger location update fetches when teams change
   useEffect(() => {
-    if (!teamsData?.teams) return
+    if (!teamsData?.teams) {
+      console.warn('[FieldModePage] No teams data available from query')
+      // Even if teams query fails, we should render geofences and waypoints
+      // Set empty teams array so FieldDashboard can still render map
+      setTeamsWithUpdates([])
+      return
+    }
     fetchLocationUpdates(teamsData.teams)
   }, [teamsData?.teams?.map(t => t.id).join(',')])
 
