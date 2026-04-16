@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useApolloClient } from '@apollo/client/react'
 import { GET_TEAMS, GET_UPDATES } from '../api/graphql/team'
@@ -109,7 +109,7 @@ function FieldModePage() {
   }
 
   // Fetch location updates for all teams with optimized time window
-  const fetchLocationUpdates = async (teams) => {
+  const fetchLocationUpdates = useCallback(async (teams) => {
     if (!teams || teams.length === 0 || !currentEvent) return
 
     if (isFetchingRef.current) {
@@ -172,7 +172,7 @@ function FieldModePage() {
     } finally {
       isFetchingRef.current = false
     }
-  }
+  }, [currentEvent, apolloClient])
 
   // Trigger location update fetches when teams change
   useEffect(() => {
@@ -184,7 +184,7 @@ function FieldModePage() {
       return
     }
     fetchLocationUpdates(teamsData.teams)
-  }, [teamsData?.teams?.map(t => t.id).join(',')])
+  }, [teamsData?.teams, fetchLocationUpdates])
 
   // Set up polling for location updates (15 seconds instead of 10 to reduce server load)
   useEffect(() => {
@@ -203,7 +203,7 @@ function FieldModePage() {
         clearInterval(fetchIntervalRef.current)
       }
     }
-  }, [teamsData?.teams?.length, currentEvent?.name])
+  }, [teamsData?.teams, fetchLocationUpdates])
 
   // Debug logging
   useEffect(() => {
