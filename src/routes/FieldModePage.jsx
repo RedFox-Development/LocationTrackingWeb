@@ -96,9 +96,9 @@ function FieldModePage() {
     const now = Date.now()
     console.log('[FieldModePage] fetchLocationUpdates started at', new Date(now).toISOString())
 
-    // Calculate limit for field operations: 1200 seconds (shorter than desktop's 3600s)
+    // Calculate limit for field operations: 900 seconds (15 minutes, reduced from 1200s for better performance)
     const updateFrequencyMs = currentEvent?.update_frequency || 10000
-    const timeWindowSeconds = 1200 // 20 minutes for field ops
+    const timeWindowSeconds = 900 // 15 minutes for field ops (faster polling)
     const calculatedLimit = Math.round(timeWindowSeconds / (updateFrequencyMs / 1000) * 1.5)
     console.log('[FieldModePage] Using update frequency:', updateFrequencyMs, 'ms, time window:', timeWindowSeconds, 's, calculated limit:', calculatedLimit)
 
@@ -112,7 +112,7 @@ function FieldModePage() {
               team: team.name,
               limit: calculatedLimit,
             },
-            fetchPolicy: 'network-only',
+            fetchPolicy: 'cache-first', // Use cache first to reduce server load
           })
 
           return {
@@ -155,7 +155,7 @@ function FieldModePage() {
     fetchLocationUpdates(teamsData.teams)
   }, [teamsData?.teams?.map(t => t.id).join(',')])
 
-  // Set up polling for location updates (10 seconds like MapView)
+  // Set up polling for location updates (15 seconds instead of 10 to reduce server load)
   useEffect(() => {
     if (!teamsData?.teams || teamsData.teams.length === 0) return
 
@@ -165,7 +165,7 @@ function FieldModePage() {
     // Set up polling interval
     fetchIntervalRef.current = setInterval(() => {
       fetchLocationUpdates(teamsData.teams)
-    }, 10000) // Poll every 10 seconds for field operations
+    }, 15000) // Poll every 15 seconds for field operations (reduced from 10s for better performance)
 
     return () => {
       if (fetchIntervalRef.current) {

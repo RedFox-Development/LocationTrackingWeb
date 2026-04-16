@@ -77,6 +77,7 @@ function FieldDashboard({ event, teams = [], waypoints = [], geofences = [], isU
 
     geofenceBreachesRef.current = breaches
     if (newAlerts.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAlerts((prevAlerts) => [...newAlerts, ...prevAlerts].slice(0, 20)) // Keep last 20 alerts
     }
   }, [teams, geofences, waypoints])

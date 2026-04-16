@@ -84,7 +84,11 @@ function MapView({ event, teams }) {
   const [selectedTeams, setSelectedTeams] = useState([])
   const [showHistory, setShowHistory] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
-  const [refreshInterval, setRefreshInterval] = useState(5000)
+  const [refreshInterval, setRefreshInterval] = useState(() => {
+    // Load from localStorage or use default
+    const saved = localStorage.getItem('mapRefreshInterval')
+    return saved ? parseInt(saved, 10) : 5000
+  })
   const [mapCenter, setMapCenter] = useState([20, 0])
   const [mapZoom] = useState(5)
   const [geofence, setGeofence] = useState(null)
@@ -105,6 +109,11 @@ function MapView({ event, teams }) {
   const teamLocations = teamLocationsRef.current
   const geofenceBreaches = geofenceBreachesRef.current
   const canManageEvent = hasManageAccess(event)
+
+  // Persist refresh interval to localStorage
+  useEffect(() => {
+    localStorage.setItem('mapRefreshInterval', refreshInterval.toString())
+  }, [refreshInterval])
 
   const {
     data: waypointData,
