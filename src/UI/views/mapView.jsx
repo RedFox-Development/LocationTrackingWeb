@@ -120,8 +120,8 @@ function MapView({ event, teams }) {
     refetch: refetchWaypoints,
   } = useQuery(GET_WAYPOINTS, {
     variables: { eventId: event.id },
-    fetchPolicy: 'network-only',
-    pollInterval: 30000,
+    fetchPolicy: 'cache-and-network',
+    pollInterval: 300000,
     skip: !event?.id,
   })
 
@@ -280,7 +280,7 @@ function MapView({ event, teams }) {
 
     // Calculate limit based on update frequency with safe fallback
     const updateFrequencyMs = event?.update_frequency || 10000 // Default 10 seconds if not set
-    const calculatedLimit = Math.round(1800 / (updateFrequencyMs / 1000) * 1.5)
+    const calculatedLimit = Math.max(1, Math.floor((30 * 60000) / updateFrequencyMs))
     console.log('[MapView] Using update frequency:', updateFrequencyMs, 'ms, calculated limit:', calculatedLimit)
 
     try {
@@ -290,7 +290,7 @@ function MapView({ event, teams }) {
             teamId: team.id,
             teamName: team.name,
             teamColor: team.color || '#3b82f6',
-            updates: team.updates,
+            updates: team.updates.slice(0, calculatedLimit),
           }
         }
 
@@ -340,7 +340,7 @@ function MapView({ event, teams }) {
             const timeB = new Date(normalizeTimestamp(b.timestamp)).getTime()
             return timeA - timeB
           })
-          const filteredUpdates = applyMedianFilter(sortedUpdates)
+          const filteredUpdates = applyMedianFilter(sortedUpdates).slice(-calculatedLimit)
           const latestUpdate = filteredUpdates[filteredUpdates.length - 1]
 
           const newLocationData = {

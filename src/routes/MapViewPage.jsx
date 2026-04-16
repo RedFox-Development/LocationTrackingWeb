@@ -11,7 +11,7 @@ function MapViewPage() {
   const [event, setEvent] = useState(null)
   const [teams, setTeams] = useState([])
   const updateFrequencyMs = event?.update_frequency || 10000
-  const locationLimit = Math.max(1, Math.min(1000, Math.round(1800 / (updateFrequencyMs / 1000) * 1.5)))
+  const locationLimit = Math.max(1, Math.floor((30 * 60000) / updateFrequencyMs))
 
   const { data: eventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
@@ -42,10 +42,14 @@ function MapViewPage() {
 
   useEffect(() => {
     if (teamsData?.teams) {
-      setTeams(teamsData.teams)
-      localStorage.setItem('currentTeams', JSON.stringify(teamsData.teams))
+      const trimmedTeams = teamsData.teams.map((team) => ({
+        ...team,
+        updates: Array.isArray(team.updates) ? team.updates.slice(0, locationLimit) : [],
+      }))
+      setTeams(trimmedTeams)
+      localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
     }
-  }, [teamsData])
+  }, [teamsData, locationLimit])
 
   useEffect(() => {
     if (eventData?.event) {

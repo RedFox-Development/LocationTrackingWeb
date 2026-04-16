@@ -88,7 +88,7 @@ function FieldModePage() {
   }, [])
 
   const updateFrequencyMs = currentEvent?.update_frequency || 10000
-  const locationLimit = Math.max(1, Math.min(1000, Math.round(900 / (updateFrequencyMs / 1000) * 1.5)))
+  const locationLimit = Math.max(1, Math.floor((10 * 60000) / updateFrequencyMs))
 
   // Fetch teams for this event, including bounded nested updates (poll every 15 seconds)
   const { data: teamsData, loading: teamsLoading, error: teamsError } = useQuery(GET_TEAMS_WITH_UPDATES, {
@@ -96,7 +96,7 @@ function FieldModePage() {
     skip: !currentEvent?.id,
     fetchPolicy: 'cache-and-network',
     notifyOnNetworkStatusChange: true,
-    pollInterval: 15000, // Poll every 15 seconds for field operations
+    pollInterval: 30000, // Poll every 30 seconds for field operations
   })
 
   if (teamsError) {
@@ -109,8 +109,13 @@ function FieldModePage() {
   useEffect(() => {
     if (!teamsData?.teams) return
 
-    setTeamsWithUpdates(teamsData.teams)
-  }, [teamsData?.teams])
+    const trimmedTeams = teamsData.teams.map((team) => ({
+      ...team,
+      updates: Array.isArray(team.updates) ? team.updates.slice(0, locationLimit) : [],
+    }))
+
+    setTeamsWithUpdates(trimmedTeams)
+  }, [teamsData?.teams, locationLimit])
 
   // Fetch waypoints for this event (poll every 5 minutes)
   const { data: waypointsData, error: waypointsError } = useQuery(GET_WAYPOINTS, {
