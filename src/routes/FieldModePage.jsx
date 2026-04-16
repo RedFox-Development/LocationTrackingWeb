@@ -1,13 +1,19 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@apollo/client/react'
-import { GET_TEAMS } from '../api/graphql/team'
+import { apolloClient } from '../api/apolloClient'
+import { GET_TEAMS_FIELD_OPS, GET_UPDATES } from '../api/graphql/team'
 import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
 
 /**
  * FieldModePage - Mobile-optimized interface for field organizers
  * Real-time team monitoring, geofence alerts, waypoint tracking
+ * 
+ * Query Strategy (Parity with MapView):
+ * - Fetches teams separately (lightweight)
+ * - Fetches location updates with calculated limit based on update frequency
+ * - Shorter time window (1200s = 20 mins) vs desktop (3600s = 1 hour)
  */
 function FieldModePage() {
   const navigate = useNavigate()
@@ -15,6 +21,9 @@ function FieldModePage() {
   const [currentWaypoints, setCurrentWaypoints] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [geofences, setGeofences] = useState([])
+  const [teamsWithUpdates, setTeamsWithUpdates] = useState([])
+  const isFetchingRef = useRef(false)
+  const fetchIntervalRef = useRef(null)
 
   useEffect(() => {
     const eventData = localStorage.getItem('currentEvent')
@@ -66,37 +75,120 @@ function FieldModePage() {
     setGeofences(parsedGeofences)
   }, [currentEvent?.geofence_data, currentEvent?.id])
 
-  // Fetch teams with polling for real-time updates
-  const { data: teamsData, loading: teamsLoading, error: teamsError, networkStatus } = useQuery(GET_TEAMS, {
+  // Fetch teams (lightweight - no updates)
+  const { data: teamsData, loading: teamsLoading, error: teamsError, refetch: refetchTeams } = useQuery(GET_TEAMS_FIELD_OPS, {
     variables: { eventId: currentEvent?.id },
     skip: !currentEvent?.id,
-    pollInterval: 10000, // Poll every 10 seconds (faster updates)
-    fetchPolicy: 'cache-and-network', // Use cache immediately, then update in background
+    fetchPolicy: 'cache-and-network',
     notifyOnNetworkStatusChange: true,
   })
 
+  // Fetch location updates for all teams with optimized time window
+  const fetchLocationUpdates = async (teams) => {
+    if (!teams || teams.length === 0 || !currentEvent) return
+
+    if (isFetchingRef.current) {
+      console.log('[FieldModePage] Already fetching, skipping...')
+      return
+    }
+
+    isFetchingRef.current = true
+    const now = Date.now()
+    console.log('[FieldModePage] fetchLocationUpdates started at', new Date(now).toISOString())
+
+    // Calculate limit for field operations: 1200 seconds (shorter than desktop's 3600s)
+    const updateFrequencyMs = currentEvent?.update_frequency || 10000
+    const timeWindowSeconds = 1200 // 20 minutes for field ops
+    const calculatedLimit = Math.round(timeWindowSeconds / (updateFrequencyMs / 1000) * 1.5)
+    console.log('[FieldModePage] Using update frequency:', updateFrequencyMs, 'ms, time window:', timeWindowSeconds, 's, calculated limit:', calculatedLimit)
+
+    try {
+      const locationsPromises = teams.map(async (team) => {
+        try {
+          const { data } = await apolloClient.query({
+            query: GET_UPDATES,
+            variables: {
+              event: currentEvent.name,
+              team: team.name,
+              limit: calculatedLimit,
+            },
+            fetchPolicy: 'network-only',
+          })
+
+          return {
+            id: team.id,
+            name: team.name,
+            color: team.color,
+            event_id: team.event_id,
+            activated: team.activated,
+            updates: data.updates || [],
+          }
+        } catch (error) {
+          console.error(`[FieldModePage] Error fetching locations for team ${team.name}:`, error)
+          return {
+            id: team.id,
+            name: team.name,
+            color: team.color,
+            event_id: team.event_id,
+            activated: team.activated,
+            updates: [],
+          }
+        }
+      })
+
+      const results = await Promise.all(locationsPromises)
+      console.log('[FieldModePage] Got results for', results.length, 'teams')
+      results.forEach(r => {
+        console.log(`[FieldModePage] Team ${r.name} has ${r.updates?.length || 0} location updates`)
+      })
+      setTeamsWithUpdates(results)
+    } catch (error) {
+      console.error('[FieldModePage] Error in fetchLocationUpdates:', error)
+    } finally {
+      isFetchingRef.current = false
+    }
+  }
+
+  // Trigger location update fetches when teams change
+  useEffect(() => {
+    if (!teamsData?.teams) return
+    fetchLocationUpdates(teamsData.teams)
+  }, [teamsData?.teams?.map(t => t.id).join(',')])
+
+  // Set up polling for location updates (10 seconds like MapView)
+  useEffect(() => {
+    if (!teamsData?.teams || teamsData.teams.length === 0) return
+
+    // Initial fetch
+    fetchLocationUpdates(teamsData.teams)
+
+    // Set up polling interval
+    fetchIntervalRef.current = setInterval(() => {
+      fetchLocationUpdates(teamsData.teams)
+    }, 10000) // Poll every 10 seconds for field operations
+
+    return () => {
+      if (fetchIntervalRef.current) {
+        clearInterval(fetchIntervalRef.current)
+      }
+    }
+  }, [teamsData?.teams?.length, currentEvent?.name])
+
+  // Debug logging
   useEffect(() => {
     if (teamsError) {
       console.error('[FieldModePage] Teams query error:', teamsError?.message)
-      console.error('[FieldModePage] Full error:', teamsError)
     }
-    const status = networkStatus === 1 ? 'loading' : networkStatus === 4 ? 'polling' : 'idle'
-    console.log('[FieldModePage] Query variables:', { eventId: currentEvent?.id }, 'Skip query:', !currentEvent?.id)
-    console.log('[FieldModePage] Teams query status:', status, 'networkStatus:', networkStatus)
-    console.log('[FieldModePage] teamsData:', teamsData)
-    console.log('[FieldModePage] teamsLoading:', teamsLoading)
-    console.log('[FieldModePage] Teams received:', teamsData?.teams?.length || 0, 'teams')
-    if (teamsData?.teams && teamsData.teams.length > 0) {
-      console.log('[FieldModePage] First team:', teamsData.teams[0])
-      console.log('[FieldModePage] First team updates:', teamsData.teams[0].updates?.length || 0, 'updates')
-      if (teamsData.teams[0].updates?.length > 0) {
-        console.log('[FieldModePage] First update:', teamsData.teams[0].updates[0])
-      }
+    console.log('[FieldModePage] Teams loaded:', teamsData?.teams?.length || 0, 'teams')
+    console.log('[FieldModePage] Teams with updates:', teamsWithUpdates.length)
+    if (teamsWithUpdates.length > 0) {
+      console.log('[FieldModePage] First team:', teamsWithUpdates[0])
+      console.log('[FieldModePage] First team updates:', teamsWithUpdates[0].updates?.length || 0, 'updates')
     }
-  }, [teamsData, teamsError, networkStatus])
+  }, [teamsData, teamsWithUpdates, teamsError])
 
-  // Only show loading on initial load or actual errors, not during polling
-  const isInitialLoading = isLoading || (teamsLoading && networkStatus === 1)
+  // Only show loading on initial load
+  const isInitialLoading = isLoading || teamsLoading
 
   if (isInitialLoading) {
     return (
@@ -115,10 +207,10 @@ function FieldModePage() {
     <div className="field-mode-page">
       <FieldDashboard
         event={currentEvent}
-        teams={teamsData?.teams || []}
+        teams={teamsWithUpdates}
         waypoints={currentWaypoints}
         geofences={geofences}
-        isUpdating={networkStatus === 4}
+        isUpdating={isFetchingRef.current}
       />
     </div>
   )
