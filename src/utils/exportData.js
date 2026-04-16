@@ -231,12 +231,21 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
   }))
   zip.file('teams.json', JSON.stringify(teamsSummary, null, 2))
 
-  // Create a folder for each team with locations
+  // Create a folder for each team
   const teamsFolder = zip.folder('teams')
   for (const team of exportData.teams) {
+    const teamFolder = teamsFolder.folder(team.name.replace(/[^a-z0-9]/gi, '_'))
+    
+    // Add team metadata
+    teamFolder.file('team-info.json', JSON.stringify({
+      id: team.id,
+      name: team.name,
+      color: team.color,
+      locationCount: team.locations ? team.locations.length : 0
+    }, null, 2))
+    
+    // Add location files if team has data
     if (team.locations && team.locations.length > 0) {
-      const teamFolder = teamsFolder.folder(team.name.replace(/[^a-z0-9]/gi, '_'))
-      
       // Add GeoJSON file
       const geojson = locationsToGeoJSON(team.locations, team.name)
       teamFolder.file('locations.geojson', JSON.stringify(geojson, null, 2))
@@ -247,6 +256,15 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
         `${loc.lat},${loc.lon},${loc.timestamp}`
       ).join('\n')
       teamFolder.file('locations.csv', csvHeader + csvRows)
+    } else {
+      // Add empty files for teams with no location data
+      teamFolder.file('locations.geojson', JSON.stringify({
+        type: 'FeatureCollection',
+        features: []
+      }, null, 2))
+      
+      const csvHeader = 'latitude,longitude,timestamp\n'
+      teamFolder.file('locations.csv', csvHeader)
     }
   }
 
