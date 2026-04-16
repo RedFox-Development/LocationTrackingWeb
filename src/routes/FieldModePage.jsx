@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@apollo/client/react'
-import { apolloClient } from '../api/apolloClient'
+import { useQuery, useApolloClient } from '@apollo/client/react'
 import { GET_TEAMS_FIELD_OPS, GET_UPDATES } from '../api/graphql/team'
 import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
@@ -17,6 +16,7 @@ import '../UI/style/field-mode.css'
  */
 function FieldModePage() {
   const navigate = useNavigate()
+  const apolloClient = useApolloClient()
   const [currentEvent, setCurrentEvent] = useState(null)
   const [currentWaypoints, setCurrentWaypoints] = useState([])
   const [isLoading, setIsLoading] = useState(true)
