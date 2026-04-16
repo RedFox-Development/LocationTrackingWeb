@@ -87,8 +87,8 @@ export const createTeamIcon = (
 
   return L.icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(svgMarkup)}`,
-    iconSize: [48, 56],
-    iconAnchor: [24, 50],
+    iconSize: [30, 36],
+    iconAnchor: [15, 36],
     popupAnchor: [0, -50],
     className: 'team-marker',
   })
