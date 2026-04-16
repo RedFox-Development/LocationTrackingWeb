@@ -47,22 +47,6 @@ export const createTeamIcon = (
   isGeofenceBreach = false,
   lastUpdateTime = null
 ) => {
-  // Extract initials from team name (up to 2 characters)
-  const initials = teamName
-    .split(' ')
-    .map(word => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-
-  // Determine text color based on background brightness
-  const rgb = parseInt(color.slice(1), 16);
-  const r = (rgb >> 16) & 255;
-  const g = (rgb >> 8) & 255;
-  const b = rgb & 255;
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-  const textColor = brightness > 155 ? '#000000' : '#FFFFFF';
-
   // Determine left face color based on geofence status and update age
   let leftFaceColor = '#22c55e'; // Default: green (inside geofence, recent)
 
@@ -99,11 +83,6 @@ export const createTeamIcon = (
       
       <!-- Top facet (team color, slightly darker) -->
       <polygon points="14,6 24,2 34,6 24,10" fill="${topRightDarkColor}" stroke="${borderColor}" stroke-width="${borderWidth}" opacity="0.9"/>
-      
-      <!-- Team initials text in center of front face -->
-      <text x="24" y="32" font-family="Arial, sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="${textColor}" opacity="0.95">
-        ${initials}
-      </text>
     </svg>
   `
 
