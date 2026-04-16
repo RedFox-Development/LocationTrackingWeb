@@ -262,7 +262,7 @@ export const EXPORT_EVENT_DATA = gql`
         lat
         lon
         type
-        point_value
+        pointValue
         is_required
         created_at
       }
@@ -271,20 +271,21 @@ export const EXPORT_EVENT_DATA = gql`
           team_id
           team_name
           team_color
-          total_updates
-          distance_traveled_meters
-          duration_seconds
-          avg_speed_mps
-          max_speed_mps
-          avg_bearing
-          kinematic_entropy
-          path_sinuosity
+          total_distance_m
+          avg_speed_kmh
+          max_speed_kmh
+          active_duration_s
+          stationary_duration_s
+          num_updates
+          start_time
+          end_time
         }
         dwell_points_by_team
         heatmap {
           grid_cells {
-            lat
-            lon
+            latitude
+            longitude
+            update_count
             intensity
           }
           num_cells
@@ -292,8 +293,8 @@ export const EXPORT_EVENT_DATA = gql`
           min_intensity
           total_non_stationary_updates
           event_centroid {
-            lat
-            lon
+            latitude
+            longitude
           }
           cellSizeMeters
         }

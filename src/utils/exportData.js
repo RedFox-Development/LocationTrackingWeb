@@ -248,9 +248,9 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
     
     // Save team metrics as CSV
     if (exportData.analytics.team_metrics && exportData.analytics.team_metrics.length > 0) {
-      const csvHeader = 'Team ID,Team Name,Total Updates,Distance (m),Duration (s),Avg Speed (m/s),Max Speed (m/s),Entropy,Sinuosity\n'
+      const csvHeader = 'Team ID,Team Name,Distance (m),Active Duration (s),Stationary Duration (s),Avg Speed (km/h),Max Speed (km/h),Total Updates,Start Time,End Time\n'
       const csvRows = exportData.analytics.team_metrics.map(metric =>
-        `${metric.team_id},"${metric.team_name}",${metric.total_updates},${metric.distance_traveled_meters},${metric.duration_seconds},${metric.avg_speed_mps},${metric.max_speed_mps},${metric.kinematic_entropy},${metric.path_sinuosity}`
+        `${metric.team_id},"${metric.team_name}",${metric.total_distance_m},${metric.active_duration_s},${metric.stationary_duration_s},${metric.avg_speed_kmh},${metric.max_speed_kmh},${metric.num_updates},"${metric.start_time || ''}","${metric.end_time || ''}"`
       ).join('\n')
       zip.file('analytics/team-metrics.csv', csvHeader + csvRows)
     }
