@@ -280,11 +280,20 @@ function MapView({ event, teams }) {
 
     // Calculate limit based on update frequency with safe fallback
     const updateFrequencyMs = event?.update_frequency || 10000 // Default 10 seconds if not set
-    const calculatedLimit = Math.round(3600 / (updateFrequencyMs / 1000) * 1.5)
+    const calculatedLimit = Math.round(1800 / (updateFrequencyMs / 1000) * 1.5)
     console.log('[MapView] Using update frequency:', updateFrequencyMs, 'ms, calculated limit:', calculatedLimit)
 
     try {
       const locationsPromises = teams.map(async (team) => {
+        if (Array.isArray(team.updates) && team.updates.length > 0) {
+          return {
+            teamId: team.id,
+            teamName: team.name,
+            teamColor: team.color || '#3b82f6',
+            updates: team.updates,
+          }
+        }
+
         try {
           const { data } = await apolloClient.query({
             query: GET_UPDATES,

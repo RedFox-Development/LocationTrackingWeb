@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
-import { useQuery } from '@apollo/client/react'
-import { GET_TEAMS } from './api/graphql/team'
 
 import ProtectedRoute from './components/ProtectedRoute'
 import AppHeaderName from './components/AppHeaderName'
@@ -78,21 +76,6 @@ const App = () => {
     const timeoutId = setTimeout(checkAuth, 0)
     return () => clearTimeout(timeoutId)
   }, [location.pathname])
-
-  // Poll for teams data when logged in
-  const { error, data } = useQuery(GET_TEAMS, {
-    variables: { eventId: currentEvent?.id },
-    skip: !isLoggedIn || !currentEvent?.id,
-    pollInterval: 60000,
-    fetchPolicy: 'network-only'
-  });
-  if (data?.teams) {
-    console.log('[App] Teams data updated:', data.teams)
-    localStorage.setItem('currentTeams', JSON.stringify(data.teams))
-  }
-  if (error) {
-    console.error('[App] Error fetching teams:', error)
-  }
 
   // Don't show header on login and setup pages, show minimal header for field mode
   const showHeader = location.pathname !== '/login' && location.pathname !== '/setup'

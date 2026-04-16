@@ -50,6 +50,26 @@ export const GET_TEAMS = gql`
   }
 `
 
+export const GET_TEAMS_WITH_UPDATES = gql`
+  query GetTeamsWithUpdates($eventId: Int!, $limit: Int) {
+    teams(event_id: $eventId) {
+      id
+      name
+      color
+      event_id
+      activated
+      updates(limit: $limit) {
+        id
+        team
+        event
+        lat
+        lon
+        timestamp
+      }
+    }
+  }
+`
+
 export const UPDATE_TEAM_COLOR = gql`
   mutation UpdateTeamColor($teamId: Int!, $eventId: Int!, $keycode: String!, $color: String!) {
     updateTeamColor(team_id: $teamId, event_id: $eventId, keycode: $keycode, color: $color) {
