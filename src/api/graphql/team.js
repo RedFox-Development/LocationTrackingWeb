@@ -52,7 +52,7 @@ export const GET_TEAMS = gql`
 
 export const GET_TEAMS_WITH_UPDATES = gql`
   query GetTeamsWithUpdates($eventId: Int!, $limit: Int) {
-    teams(event_id: $eventId) {
+    teamsWithUpdates(event_id: $eventId, limit: $limit) {
       id
       name
       color
