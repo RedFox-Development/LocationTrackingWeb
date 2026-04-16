@@ -274,7 +274,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
         }
 
         // Create custom team icon with dynamic coloring
-        const icon = createTeamIcon(team.name, color, isSelected, isOutsideGeofence, latest.timestamp)
+        const icon = createTeamIcon(color, isSelected, isOutsideGeofence, latest.timestamp)
 
         // Add team marker
         window.L.marker([latest.lat, latest.lon], { icon })

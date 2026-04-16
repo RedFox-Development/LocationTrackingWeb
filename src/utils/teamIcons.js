@@ -41,7 +41,6 @@ const darkenColor = (hexColor, percent = 0.2) => {
  * @returns {L.Icon}
  */
 export const createTeamIcon = (
-  teamName = 'Team',
   color = '#3B82F6',
   isSelected = false,
   isGeofenceBreach = false,

@@ -603,7 +603,7 @@ function MapView({ event, teams }) {
               {latest && (
                 <Marker
                   position={[latest.lat, latest.lon]}
-                  icon={createTeamIcon(teamName, teamColor, false, hasBreached, latest.timestamp)}
+                  icon={createTeamIcon(teamColor, false, hasBreached, latest.timestamp)}
                 >
                   <Popup>
                     <div className="marker-popup">
