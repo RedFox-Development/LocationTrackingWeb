@@ -22,6 +22,13 @@ function FieldModePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [geofences, setGeofences] = useState([])
   const [teamsWithUpdates, setTeamsWithUpdates] = useState([])
+  const trimTeamsToLimit = (teamsToTrim, limit) => {
+    if (!Array.isArray(teamsToTrim)) return []
+    return teamsToTrim.map((team) => ({
+      ...team,
+      updates: Array.isArray(team.updates) ? team.updates.slice(0, limit) : [],
+    }))
+  }
 
   useEffect(() => {
     const eventData = localStorage.getItem('currentEvent')
@@ -73,6 +80,9 @@ function FieldModePage() {
     setGeofences(parsedGeofences)
   }, [currentEvent?.geofence_data, currentEvent?.id])
 
+  const updateFrequencyMs = currentEvent?.update_frequency || 10000
+  const locationLimit = Math.max(1, Math.floor((10 * 60000) / updateFrequencyMs))
+
   useEffect(() => {
     const storedTeamsData = localStorage.getItem('currentTeams')
     if (!storedTeamsData) return
@@ -80,15 +90,14 @@ function FieldModePage() {
     try {
       const parsedTeams = JSON.parse(storedTeamsData)
       if (Array.isArray(parsedTeams) && parsedTeams.length > 0) {
-        setTeamsWithUpdates(parsedTeams)
+        const trimmedTeams = trimTeamsToLimit(parsedTeams, locationLimit)
+        setTeamsWithUpdates(trimmedTeams)
+        localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
       }
     } catch (error) {
       console.error('[FieldModePage] Failed to parse currentTeams:', error)
     }
-  }, [])
-
-  const updateFrequencyMs = currentEvent?.update_frequency || 10000
-  const locationLimit = Math.max(1, Math.floor((10 * 60000) / updateFrequencyMs))
+  }, [locationLimit])
 
   // Fetch teams for this event, including bounded nested updates (poll every 15 seconds)
   const { data: teamsData, loading: teamsLoading, error: teamsError } = useQuery(GET_TEAMS_WITH_UPDATES, {
@@ -109,13 +118,23 @@ function FieldModePage() {
   useEffect(() => {
     if (!teamsData?.teams) return
 
-    const trimmedTeams = teamsData.teams.map((team) => ({
-      ...team,
-      updates: Array.isArray(team.updates) ? team.updates.slice(0, locationLimit) : [],
-    }))
+    const trimmedTeams = trimTeamsToLimit(teamsData.teams, locationLimit)
 
     setTeamsWithUpdates(trimmedTeams)
+    localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
   }, [teamsData?.teams, locationLimit])
+
+  useEffect(() => {
+    if (!teamsWithUpdates || teamsWithUpdates.length === 0) return
+
+    const trimmedTeams = trimTeamsToLimit(teamsWithUpdates, locationLimit)
+    if (JSON.stringify(trimmedTeams) === JSON.stringify(teamsWithUpdates)) {
+      return
+    }
+
+    setTeamsWithUpdates(trimmedTeams)
+    localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+  }, [teamsWithUpdates, locationLimit])
 
   // Fetch waypoints for this event (poll every 5 minutes)
   const { data: waypointsData, error: waypointsError } = useQuery(GET_WAYPOINTS, {

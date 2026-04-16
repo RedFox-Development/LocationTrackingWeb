@@ -12,6 +12,13 @@ function MapViewPage() {
   const [teams, setTeams] = useState([])
   const updateFrequencyMs = event?.update_frequency || 10000
   const locationLimit = Math.max(1, Math.floor((30 * 60000) / updateFrequencyMs))
+  const trimTeamsToLimit = (teamsToTrim, limit) => {
+    if (!Array.isArray(teamsToTrim)) return []
+    return teamsToTrim.map((team) => ({
+      ...team,
+      updates: Array.isArray(team.updates) ? team.updates.slice(0, limit) : [],
+    }))
+  }
 
   const { data: eventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
@@ -32,24 +39,33 @@ function MapViewPage() {
     const currentTeams = localStorage.getItem('currentTeams')
     if (currentEvent && currentTeams) {
       setEvent(JSON.parse(currentEvent))
-      setTeams(JSON.parse(currentTeams))
+      setTeams(trimTeamsToLimit(JSON.parse(currentTeams), locationLimit))
     } else if (currentEvent) {
       setEvent(JSON.parse(currentEvent))
     } else {
       navigate('/login')
     }
-  }, [navigate])
+  }, [navigate, locationLimit])
 
   useEffect(() => {
     if (teamsData?.teams) {
-      const trimmedTeams = teamsData.teams.map((team) => ({
-        ...team,
-        updates: Array.isArray(team.updates) ? team.updates.slice(0, locationLimit) : [],
-      }))
+      const trimmedTeams = trimTeamsToLimit(teamsData.teams, locationLimit)
       setTeams(trimmedTeams)
       localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
     }
   }, [teamsData, locationLimit])
+
+  useEffect(() => {
+    if (!teams || teams.length === 0) return
+
+    const trimmedTeams = trimTeamsToLimit(teams, locationLimit)
+    if (JSON.stringify(trimmedTeams) === JSON.stringify(teams)) {
+      return
+    }
+
+    setTeams(trimmedTeams)
+    localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+  }, [teams, locationLimit])
 
   useEffect(() => {
     if (eventData?.event) {
