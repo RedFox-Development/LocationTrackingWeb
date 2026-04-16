@@ -103,10 +103,13 @@ function FieldModePage() {
   if (waypointsError) {
     console.error('[FieldModePage] Waypoints query error:', waypointsError?.message)
   }
-  if (waypointsData?.waypoints) {
+
+  useEffect(() => {
+    if (!waypointsData?.waypoints) return
+
     console.log('[FieldModePage] Waypoints fetched:', waypointsData.waypoints.length, 'waypoints')
     setCurrentWaypoints(waypointsData.waypoints)
-  }
+  }, [waypointsData?.waypoints])
 
   // Fetch location updates for all teams with optimized time window
   const fetchLocationUpdates = useCallback(async (teams) => {
