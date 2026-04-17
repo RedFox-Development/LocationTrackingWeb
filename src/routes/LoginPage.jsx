@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { LOGIN } from '../api/graphql/login'
 import { GET_EVENT } from '../api/graphql/event'
+import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { graphqlClient } from '../api/graphql/graphqlClient'
 // eslint-disable-next-line no-unused-vars
@@ -70,7 +71,7 @@ function LoginPage() {
             fetchPolicy: 'network-only',
           }),
           graphqlClient.query({
-            query: GET_TEAMS_WITH_UPDATES,
+            query: GET_TEAMS,
             variables: { eventId: loggedInEvent.id, limit: teamUpdateLimit },
             fetchPolicy: 'network-only',
           }),
@@ -249,7 +250,7 @@ function LoginPage() {
             fetchPolicy: 'network-only',
           }),
           graphqlClient.query({
-            query: GET_TEAMS_WITH_UPDATES,
+            query: GET_TEAMS,
             variables: { eventId: loggedInEvent.id, limit: teamUpdateLimit },
             fetchPolicy: 'network-only',
           }),

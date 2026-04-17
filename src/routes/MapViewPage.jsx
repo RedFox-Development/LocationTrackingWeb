@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@apollo/client/react'
 import MapView from '../UI/views/mapView'
-import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
+import { GET_TEAMS } from '../api/graphql/team'
 import { GET_EVENT } from '../api/graphql/event'
 import { mergeEventWithAuthFields } from '../utils/eventAccess'
 import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
@@ -20,7 +20,7 @@ function MapViewPage() {
     pollInterval: 30000,
   })
 
-  const { data: teamsData } = useQuery(GET_TEAMS_WITH_UPDATES, {
+  const { data: teamsData } = useQuery(GET_TEAMS, {
     variables: { eventId: event?.id, limit: locationLimit },
     skip: !event?.id,
     fetchPolicy: 'cache-and-network',

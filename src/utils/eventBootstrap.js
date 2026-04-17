@@ -1,6 +1,6 @@
 import { graphqlClient } from '../api/graphql/graphqlClient'
 import { GET_EVENT } from '../api/graphql/event'
-import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
+import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { mergeEventWithAuthFields } from './eventAccess'
 import { getTeamUpdateLimit } from './updateLimits'
@@ -52,7 +52,7 @@ export const preloadEventDataBundle = async (eventId) => {
       fetchPolicy: 'network-only',
     }),
     graphqlClient.query({
-      query: GET_TEAMS_WITH_UPDATES,
+      query: GET_TEAMS,
       variables: { eventId, limit: teamUpdateLimit },
       fetchPolicy: 'network-only',
     }),

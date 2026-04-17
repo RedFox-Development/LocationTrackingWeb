@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@apollo/client/react'
-import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
+import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
@@ -94,7 +94,7 @@ function FieldModePage() {
   }, [locationLimit])
 
   // Fetch teams for this event, including bounded nested updates (poll every 15 seconds)
-  const { data: teamsData, loading: teamsLoading, error: teamsError } = useQuery(GET_TEAMS_WITH_UPDATES, {
+  const { data: teamsData, loading: teamsLoading, error: teamsError } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id, limit: locationLimit },
     skip: !currentEvent?.id,
     fetchPolicy: 'cache-and-network',
