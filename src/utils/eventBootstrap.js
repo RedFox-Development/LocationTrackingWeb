@@ -1,8 +1,9 @@
 import { graphqlClient } from '../api/graphql/graphqlClient'
 import { GET_EVENT } from '../api/graphql/event'
-import { GET_TEAMS } from '../api/graphql/team'
+import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { mergeEventWithAuthFields } from './eventAccess'
+import { getTeamUpdateLimit } from './updateLimits'
 
 const setLocalJson = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value))
@@ -33,6 +34,17 @@ export const preloadEventDataBundle = async (eventId) => {
     throw new Error('Missing event id for data preload')
   }
 
+  const currentEvent = (() => {
+    const raw = localStorage.getItem('currentEvent')
+    if (!raw) return null
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  })()
+  const teamUpdateLimit = getTeamUpdateLimit(currentEvent?.update_frequency, currentEvent?.access_level)
+
   const [eventResult, teamsResult, waypointsResult] = await Promise.all([
     graphqlClient.query({
       query: GET_EVENT,
@@ -40,8 +52,8 @@ export const preloadEventDataBundle = async (eventId) => {
       fetchPolicy: 'network-only',
     }),
     graphqlClient.query({
-      query: GET_TEAMS,
-      variables: { eventId },
+      query: GET_TEAMS_WITH_UPDATES,
+      variables: { eventId, limit: teamUpdateLimit },
       fetchPolicy: 'network-only',
     }),
     graphqlClient.query({
@@ -52,15 +64,6 @@ export const preloadEventDataBundle = async (eventId) => {
   ])
 
   const event = eventResult?.data?.event
-  const existingEvent = (() => {
-    const raw = localStorage.getItem('currentEvent')
-    if (!raw) return null
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return null
-    }
-  })()
   const teams = teamsResult?.data?.teams || []
   const waypoints = waypointsResult?.data?.waypoints || []
 

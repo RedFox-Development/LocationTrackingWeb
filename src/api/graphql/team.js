@@ -31,28 +31,8 @@ export const GET_UPDATES = gql`
 `
 
 export const GET_TEAMS = gql`
-  query GetTeams($eventId: Int!) {
+  query GetTeams($eventId: Int!, $limit: Int) {
     teams(event_id: $eventId) {
-      id
-      name
-      color
-      event_id
-      activated
-      updates {
-        id
-        team
-        event
-        lat
-        lon
-        timestamp
-      }
-    }
-  }
-`
-
-export const GET_TEAMS_WITH_UPDATES = gql`
-  query GetTeamsWithUpdates($eventId: Int!, $limit: Int) {
-    teamsWithUpdates(event_id: $eventId, limit: $limit) {
       id
       name
       color

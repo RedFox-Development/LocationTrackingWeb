@@ -6,6 +6,7 @@ import { GET_UPDATES } from '../../api/graphql/team'
 import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
 import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
 import { hasManageAccess } from '../../utils/eventAccess'
+import { getTeamUpdateLimit } from '../../utils/updateLimits'
 import { createWaypointIcon } from '../../utils/waypointIcons'
 import { createTeamIcon, getTeamTrailStyle, getHistoryDotStyle } from '../../utils/teamIcons'
 import 'leaflet/dist/leaflet.css'
@@ -280,7 +281,7 @@ function MapView({ event, teams }) {
 
     // Calculate limit based on update frequency with safe fallback
     const updateFrequencyMs = event?.update_frequency || 10000 // Default 10 seconds if not set
-    const calculatedLimit = Math.max(1, Math.floor((30 * 60000) / updateFrequencyMs))
+    const calculatedLimit = getTeamUpdateLimit(updateFrequencyMs, event?.access_level || 'manage')
     console.log('[MapView] Using update frequency:', updateFrequencyMs, 'ms, calculated limit:', calculatedLimit)
 
     try {

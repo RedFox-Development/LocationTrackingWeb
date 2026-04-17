@@ -5,6 +5,7 @@ import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
+import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
 
 /**
  * FieldModePage - Mobile-optimized interface for field organizers
@@ -22,13 +23,6 @@ function FieldModePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [geofences, setGeofences] = useState([])
   const [teamsWithUpdates, setTeamsWithUpdates] = useState([])
-  const trimTeamsToLimit = (teamsToTrim, limit) => {
-    if (!Array.isArray(teamsToTrim)) return []
-    return teamsToTrim.map((team) => ({
-      ...team,
-      updates: Array.isArray(team.updates) ? team.updates.slice(0, limit) : [],
-    }))
-  }
 
   useEffect(() => {
     const eventData = localStorage.getItem('currentEvent')
@@ -81,7 +75,7 @@ function FieldModePage() {
   }, [currentEvent?.geofence_data, currentEvent?.id])
 
   const updateFrequencyMs = currentEvent?.update_frequency || 10000
-  const locationLimit = Math.max(1, Math.floor((10 * 60000) / updateFrequencyMs))
+  const locationLimit = getTeamUpdateLimit(updateFrequencyMs, currentEvent?.access_level || 'field')
 
   useEffect(() => {
     const storedTeamsData = localStorage.getItem('currentTeams')

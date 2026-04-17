@@ -5,20 +5,13 @@ import MapView from '../UI/views/mapView'
 import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
 import { GET_EVENT } from '../api/graphql/event'
 import { mergeEventWithAuthFields } from '../utils/eventAccess'
+import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
 
 function MapViewPage() {
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
   const [teams, setTeams] = useState([])
-  const updateFrequencyMs = event?.update_frequency || 10000
-  const locationLimit = Math.max(1, Math.floor((30 * 60000) / updateFrequencyMs))
-  const trimTeamsToLimit = (teamsToTrim, limit) => {
-    if (!Array.isArray(teamsToTrim)) return []
-    return teamsToTrim.map((team) => ({
-      ...team,
-      updates: Array.isArray(team.updates) ? team.updates.slice(0, limit) : [],
-    }))
-  }
+  const locationLimit = getTeamUpdateLimit(event?.update_frequency, event?.access_level || 'manage')
 
   const { data: eventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
