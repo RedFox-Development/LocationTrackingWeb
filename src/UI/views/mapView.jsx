@@ -93,7 +93,10 @@ function MapView({ event, teams }) {
   const [mapCenter, setMapCenter] = useState([20, 0])
   const [mapZoom] = useState(5)
   const [geofence, setGeofence] = useState(null)
-  const [showWaypointScoring, setShowWaypointScoring] = useState(true)
+  const [showWaypointScoring, setShowWaypointScoring] = useState(() => {
+    const saved = localStorage.getItem('showWaypointScoring')
+    return saved === null ? true : saved === 'true'
+  })
   const [waypointVisits, setWaypointVisits] = useState([])
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
   const [_locationRenderVersion, setLocationRenderVersion] = useState(0)
@@ -115,6 +118,10 @@ function MapView({ event, teams }) {
   useEffect(() => {
     localStorage.setItem('mapRefreshInterval', refreshInterval.toString())
   }, [refreshInterval])
+
+  useEffect(() => {
+    localStorage.setItem('showWaypointScoring', showWaypointScoring.toString())
+  }, [showWaypointScoring])
 
   const {
     data: waypointData,
