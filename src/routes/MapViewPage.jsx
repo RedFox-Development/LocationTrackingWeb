@@ -6,6 +6,7 @@ import { GET_TEAMS } from '../api/graphql/team'
 import { GET_EVENT } from '../api/graphql/event'
 import { mergeEventWithAuthFields } from '../utils/eventAccess'
 import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
+import { preloadEventDataBundle } from '../utils/eventBootstrap'
 
 function MapViewPage() {
   const navigate = useNavigate()
@@ -28,17 +29,41 @@ function MapViewPage() {
   })
 
   useEffect(() => {
-    const currentEvent = localStorage.getItem('currentEvent')
-    const currentTeams = localStorage.getItem('currentTeams')
-    if (currentEvent && currentTeams) {
-      setEvent(JSON.parse(currentEvent))
-      setTeams(trimTeamsToLimit(JSON.parse(currentTeams), locationLimit))
-    } else if (currentEvent) {
-      setEvent(JSON.parse(currentEvent))
-    } else {
-      navigate('/login')
+    const loadMapData = async () => {
+      const currentEvent = localStorage.getItem('currentEvent')
+      const currentTeams = localStorage.getItem('currentTeams')
+      const currentWaypoints = localStorage.getItem('currentWaypoints')
+
+      if (!currentEvent) {
+        navigate('/login')
+        return
+      }
+
+      const parsedEvent = JSON.parse(currentEvent)
+      setEvent(parsedEvent)
+
+      const bootstrapLimit = getTeamUpdateLimit(parsedEvent?.update_frequency, parsedEvent?.access_level || 'manage')
+
+      if (currentTeams) {
+        setTeams(trimTeamsToLimit(JSON.parse(currentTeams), bootstrapLimit))
+      }
+
+      // On browser reload ensure event, teams and waypoints are restored to localStorage.
+      if (!currentTeams || !currentWaypoints) {
+        try {
+          const bundle = await preloadEventDataBundle(parsedEvent.id)
+          if (bundle?.event) {
+            setEvent((current) => mergeEventWithAuthFields(bundle.event, current || parsedEvent))
+          }
+          setTeams(trimTeamsToLimit(bundle?.teams || [], bootstrapLimit))
+        } catch (error) {
+          console.error('[MapViewPage] Failed to preload event bundle on reload:', error)
+        }
+      }
     }
-  }, [navigate, locationLimit])
+
+    loadMapData()
+  }, [navigate])
 
   useEffect(() => {
     if (teamsData?.teams) {

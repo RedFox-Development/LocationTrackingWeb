@@ -3,7 +3,18 @@ import { GET_EVENT } from '../api/graphql/event'
 import { GET_TEAMS } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { mergeEventWithAuthFields } from './eventAccess'
-import { getTeamUpdateLimit } from './updateLimits'
+import { getTeamUpdateLimit, trimTeamsToLimit } from './updateLimits'
+
+const getLocalJson = (key) => {
+  const raw = localStorage.getItem(key)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
 
 const setLocalJson = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value))
@@ -34,15 +45,7 @@ export const preloadEventDataBundle = async (eventId) => {
     throw new Error('Missing event id for data preload')
   }
 
-  const currentEvent = (() => {
-    const raw = localStorage.getItem('currentEvent')
-    if (!raw) return null
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return null
-    }
-  })()
+  const currentEvent = getLocalJson('currentEvent')
   const teamUpdateLimit = getTeamUpdateLimit(currentEvent?.update_frequency, currentEvent?.access_level)
 
   const [eventResult, teamsResult, waypointsResult] = await Promise.all([
@@ -68,13 +71,14 @@ export const preloadEventDataBundle = async (eventId) => {
   const waypoints = waypointsResult?.data?.waypoints || []
 
   if (event) {
-    const mergedEvent = mergeEventWithAuthFields(event, existingEvent)
+    const mergedEvent = mergeEventWithAuthFields(event, currentEvent)
     setLocalJson('currentEvent', mergedEvent)
     syncGeofenceCache(mergedEvent)
   }
 
-  setLocalJson('currentTeams', teams)
+  const trimmedTeams = trimTeamsToLimit(teams, teamUpdateLimit)
+  setLocalJson('currentTeams', trimmedTeams)
   setLocalJson('currentWaypoints', waypoints)
 
-  return { event, teams, waypoints }
+  return { event, teams: trimmedTeams, waypoints }
 }

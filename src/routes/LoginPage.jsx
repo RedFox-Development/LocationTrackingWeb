@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { LOGIN } from '../api/graphql/login'
-import { GET_EVENT } from '../api/graphql/event'
-import { GET_TEAMS } from '../api/graphql/team'
-import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { graphqlClient } from '../api/graphql/graphqlClient'
 // eslint-disable-next-line no-unused-vars
-import { hasManageAccess, mergeEventWithAuthFields } from '../utils/eventAccess'
-import { getTeamUpdateLimit } from '../utils/updateLimits'
+import { hasManageAccess } from '../utils/eventAccess'
+import { preloadEventDataBundle, storeBasicEventData } from '../utils/eventBootstrap'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -54,42 +51,16 @@ function LoginPage() {
         ...loginResult.event,
         access_level: loginResult.access_level || loginResult.event?.access_level || 'manage',
       }
-      const teamUpdateLimit = getTeamUpdateLimit(loggedInEvent.update_frequency, loggedInEvent.access_level)
       console.log('[LoginPage] Setting current event to localStorage:', loggedInEvent)
-      localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
+      storeBasicEventData(loggedInEvent)
       localStorage.removeItem('currentTeams')
       localStorage.removeItem('currentWaypoints')
 
       try {
         setIsBootstrappingEvent(true)
         console.log('[LoginPage] Bootstrapping event data...')
-
-        const [eventResult, teamsResult, waypointsResult] = await Promise.all([
-          graphqlClient.query({
-            query: GET_EVENT,
-            variables: { id: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-          graphqlClient.query({
-            query: GET_TEAMS,
-            variables: { eventId: loggedInEvent.id, limit: teamUpdateLimit },
-            fetchPolicy: 'network-only',
-          }),
-          graphqlClient.query({
-            query: GET_WAYPOINTS,
-            variables: { eventId: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-        ])
-
-        const fullEvent = mergeEventWithAuthFields(eventResult?.data?.event || null, loggedInEvent)
-        const teams = teamsResult?.data?.teams || []
-        const waypoints = waypointsResult?.data?.waypoints || []
-
-        console.log('[LoginPage] Bootstrap complete, saving to localStorage')
-        localStorage.setItem('currentEvent', JSON.stringify(fullEvent))
-        localStorage.setItem('currentTeams', JSON.stringify(teams))
-        localStorage.setItem('currentWaypoints', JSON.stringify(waypoints))
+        await preloadEventDataBundle(loggedInEvent.id)
+        console.log('[LoginPage] Bootstrap complete, saved event/teams/waypoints to localStorage')
       } catch (bootstrapError) {
         console.error('[LoginPage] event bootstrap failed, continuing with minimal event data:', bootstrapError)
       } finally {
@@ -235,39 +206,13 @@ function LoginPage() {
         ...loginResult.event,
         access_level: loginResult.access_level || loginResult.event?.access_level || 'manage',
       }
-      const teamUpdateLimit = getTeamUpdateLimit(loggedInEvent.update_frequency, loggedInEvent.access_level)
-      localStorage.setItem('currentEvent', JSON.stringify(loggedInEvent))
+      storeBasicEventData(loggedInEvent)
       localStorage.removeItem('currentTeams')
       localStorage.removeItem('currentWaypoints')
 
       try {
         setIsBootstrappingEvent(true)
-
-        const [eventResult, teamsResult, waypointsResult] = await Promise.all([
-          graphqlClient.query({
-            query: GET_EVENT,
-            variables: { id: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-          graphqlClient.query({
-            query: GET_TEAMS,
-            variables: { eventId: loggedInEvent.id, limit: teamUpdateLimit },
-            fetchPolicy: 'network-only',
-          }),
-          graphqlClient.query({
-            query: GET_WAYPOINTS,
-            variables: { eventId: loggedInEvent.id },
-            fetchPolicy: 'network-only',
-          }),
-        ])
-
-        const fullEvent = mergeEventWithAuthFields(eventResult?.data?.event || null, loggedInEvent)
-        const teams = teamsResult?.data?.teams || []
-        const waypoints = waypointsResult?.data?.waypoints || []
-
-        localStorage.setItem('currentEvent', JSON.stringify(fullEvent))
-        localStorage.setItem('currentTeams', JSON.stringify(teams))
-        localStorage.setItem('currentWaypoints', JSON.stringify(waypoints))
+        await preloadEventDataBundle(loggedInEvent.id)
       } catch (bootstrapError) {
         console.error('[LoginPage] event bootstrap failed, continuing with minimal event data:', bootstrapError)
       } finally {
