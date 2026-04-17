@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createWaypointIcon } from '../utils/waypointIcons'
 import { createTeamIcon, getTeamTrailStyle } from '../utils/teamIcons'
-import { isPointInPolygon } from '../utils/geofence'
+import { isPointInPolygon, getPolygonBounds, getPointsBounds } from '../utils/geofence'
 
 /**
  * FieldMap - Interactive map showing team locations and geofence boundaries
@@ -11,12 +11,27 @@ import { isPointInPolygon } from '../utils/geofence'
 function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedTeam, onTeamSelect }) {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
-  const [mapCenter, setMapCenter] = useState({ lat: 40, lng: -100 })
-  const [mapZoom, setMapZoom] = useState(4)
+  const [mapCenter, setMapCenter] = useState({ lat: 20, lng: 0 })
+  const [mapZoom, setMapZoom] = useState(5)
   const [teamPositions, setTeamPositions] = useState({})
 
   console.log('[FieldMap] Received props - teams:', teams.length, 'geofences:', geofences?.length, 'waypoints:', waypoints?.length)
   console.log('[FieldMap] Geofences data:', geofences)
+
+  const normalizeGeofencePolygons = (rawGeofences) => {
+    let polygons = []
+    if (Array.isArray(rawGeofences) && rawGeofences.length > 0) {
+      if (Array.isArray(rawGeofences[0]) && typeof rawGeofences[0][0] === 'number') {
+        polygons = [rawGeofences]
+      } else if (Array.isArray(rawGeofences[0]) && Array.isArray(rawGeofences[0][0])) {
+        polygons = rawGeofences
+      }
+    }
+
+    return polygons
+      .map((polygon) => polygon.filter((point) => Array.isArray(point) && point.length >= 2 && typeof point[0] === 'number' && typeof point[1] === 'number'))
+      .filter((polygon) => polygon.length >= 3)
+  }
 
   // Initialize map with Leaflet
   useEffect(() => {
@@ -36,50 +51,35 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   useEffect(() => {
     if (!mapRef.current || !geofences || geofences.length === 0) return
 
-    // Normalize geofences to array of polygons
-    let polygons = []
-    if (Array.isArray(geofences)) {
-      // Check if this is a single polygon or array of polygons
-      if (geofences.length > 0) {
-        if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
-          // Single polygon: [[lat1, lon1], [lat2, lon2], ...]
-          polygons = [geofences]
-        } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
-          // Multiple polygons: [[[lat1, lon1], [lat2, lon2], ...], [[lat3, lon3], ...]]
-          polygons = geofences
-        }
-      }
-    }
+    const polygons = normalizeGeofencePolygons(geofences)
 
     if (polygons.length === 0) return
 
-    // Calculate bounding box for all geofence polygons
-    let minLat = Infinity, maxLat = -Infinity
-    let minLon = Infinity, maxLon = -Infinity
-    let hasValidGeofence = false
+    const allGeofencePoints = polygons.flat()
+    const geofenceBounds = getPointsBounds(
+      allGeofencePoints.map(([lat, lon]) => ({ lat, lon }))
+    )
 
-    polygons.forEach((polygon) => {
-      if (Array.isArray(polygon)) {
-        polygon.forEach(point => {
-          if (Array.isArray(point) && point.length >= 2) {
-            hasValidGeofence = true
-            const [lat, lon] = point
-            minLat = Math.min(minLat, lat)
-            maxLat = Math.max(maxLat, lat)
-            minLon = Math.min(minLon, lon)
-            maxLon = Math.max(maxLon, lon)
-          }
-        })
+    if (geofenceBounds && window.L) {
+      const latRange = geofenceBounds.maxLat - geofenceBounds.minLat
+      const lonRange = geofenceBounds.maxLon - geofenceBounds.minLon
+      const latPadding = Math.max(latRange * 0.1, 0.001)
+      const lonPadding = Math.max(lonRange * 0.1, 0.001)
+
+      const paddedBounds = [
+        [geofenceBounds.minLat - latPadding, geofenceBounds.minLon - lonPadding],
+        [geofenceBounds.maxLat + latPadding, geofenceBounds.maxLon + lonPadding],
+      ]
+
+      const targetCenter = {
+        lat: (geofenceBounds.minLat + geofenceBounds.maxLat) / 2,
+        lng: (geofenceBounds.minLon + geofenceBounds.maxLon) / 2,
       }
-    })
 
-    // If we have valid geofences, fit map to bounds
-    if (hasValidGeofence && window.L) {
-      const bounds = window.L.latLngBounds(
-        [minLat, minLon],
-        [maxLat, maxLon]
-      )
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
+      setMapCenter(targetCenter)
+      const leafletBounds = window.L.latLngBounds(paddedBounds)
+      const targetZoom = mapRef.current.getBoundsZoom(leafletBounds, false, [50, 50])
+      mapRef.current.setView([targetCenter.lat, targetCenter.lng], targetZoom)
     }
   }, [geofences])
 
@@ -87,62 +87,61 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
   const resetMapView = () => {
     if (!mapRef.current || !window.L) return
 
-    // Normalize geofences to array of polygons
-    let polygons = []
-    if (Array.isArray(geofences) && geofences.length > 0) {
-      if (Array.isArray(geofences[0]) && typeof geofences[0][0] === 'number') {
-        polygons = [geofences]
-      } else if (Array.isArray(geofences[0]) && Array.isArray(geofences[0][0])) {
-        polygons = geofences
+    const polygons = normalizeGeofencePolygons(geofences)
+    const hasGeofence = polygons.length > 0
+
+    let activeBounds = null
+    if (hasGeofence) {
+      activeBounds = getPolygonBounds(polygons[0])
+
+      for (let i = 1; i < polygons.length; i += 1) {
+        const bounds = getPolygonBounds(polygons[i])
+        if (!bounds) continue
+
+        if (!activeBounds) {
+          activeBounds = bounds
+        } else {
+          activeBounds = {
+            minLat: Math.min(activeBounds.minLat, bounds.minLat),
+            maxLat: Math.max(activeBounds.maxLat, bounds.maxLat),
+            minLon: Math.min(activeBounds.minLon, bounds.minLon),
+            maxLon: Math.max(activeBounds.maxLon, bounds.maxLon),
+          }
+        }
+      }
+    } else {
+      const allLatLons = Object.values(teamPositions)
+        .filter((positions) => positions.length > 0)
+        .map((positions) => ({
+          lat: positions[0].lat,
+          lon: positions[0].lon,
+        }))
+
+      if (allLatLons.length > 0) {
+        activeBounds = getPointsBounds(allLatLons)
       }
     }
 
-    let minLat = Infinity, maxLat = -Infinity
-    let minLon = Infinity, maxLon = -Infinity
-    let hasValidData = false
-
-    // Get bounds from geofences
-    polygons.forEach((polygon) => {
-      if (Array.isArray(polygon)) {
-        polygon.forEach(point => {
-          if (Array.isArray(point) && point.length >= 2 && typeof point[0] === 'number' && typeof point[1] === 'number') {
-            hasValidData = true
-            const [lat, lon] = point
-            minLat = Math.min(minLat, lat)
-            maxLat = Math.max(maxLat, lat)
-            minLon = Math.min(minLon, lon)
-            maxLon = Math.max(maxLon, lon)
-          }
-        })
-      }
-    })
-
-    // Get bounds from team positions
-    Object.values(teamPositions).forEach(positions => {
-      if (positions.length > 0) {
-        const latest = positions[0]
-        if (latest.lat && latest.lon) {
-          hasValidData = true
-          minLat = Math.min(minLat, latest.lat)
-          maxLat = Math.max(maxLat, latest.lat)
-          minLon = Math.min(minLon, latest.lon)
-          maxLon = Math.max(maxLon, latest.lon)
-        }
-      }
-    })
-
-    // Fit map to bounds if we have valid data
-    if (hasValidData) {
-      const latRange = maxLat - minLat
-      const lonRange = maxLon - minLon
+    if (activeBounds) {
+      const latRange = activeBounds.maxLat - activeBounds.minLat
+      const lonRange = activeBounds.maxLon - activeBounds.minLon
       const latPadding = Math.max(latRange * 0.1, 0.001)
       const lonPadding = Math.max(lonRange * 0.1, 0.001)
 
-      const bounds = window.L.latLngBounds(
-        [minLat - latPadding, minLon - lonPadding],
-        [maxLat + latPadding, maxLon + lonPadding]
-      )
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
+      const paddedBounds = [
+        [activeBounds.minLat - latPadding, activeBounds.minLon - lonPadding],
+        [activeBounds.maxLat + latPadding, activeBounds.maxLon + lonPadding],
+      ]
+
+      const targetCenter = {
+        lat: (activeBounds.minLat + activeBounds.maxLat) / 2,
+        lng: (activeBounds.minLon + activeBounds.maxLon) / 2,
+      }
+
+      setMapCenter(targetCenter)
+      const leafletBounds = window.L.latLngBounds(paddedBounds)
+      const targetZoom = mapRef.current.getBoundsZoom(leafletBounds, false, [50, 50])
+      mapRef.current.setView([targetCenter.lat, targetCenter.lng], targetZoom)
     }
   }
 
