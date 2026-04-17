@@ -25,6 +25,7 @@ function FieldModePage() {
   const [teamsWithUpdates, setTeamsWithUpdates] = useState([])
   const refreshIntervalRef = useRef(null)
   const isRefreshingTeamsRef = useRef(false)
+  const refetchTeamsRef = useRef(null)
 
   useEffect(() => {
     const eventData = localStorage.getItem('currentEvent')
@@ -105,8 +106,12 @@ function FieldModePage() {
     variables: { eventId: currentEvent?.id, limit: locationLimit },
     skip: !currentEvent?.id,
     fetchPolicy: 'cache-and-network',
-    notifyOnNetworkStatusChange: true,
+    notifyOnNetworkStatusChange: false,
   })
+
+  useEffect(() => {
+    refetchTeamsRef.current = refetchTeams
+  }, [refetchTeams])
 
   if (teamsError) {
     console.error('[FieldModePage] Teams query error:', teamsError?.message)
@@ -125,17 +130,18 @@ function FieldModePage() {
   }, [teamsData?.teams, locationLimit])
 
   useEffect(() => {
-    if (!currentEvent?.id || !refetchTeams) return
+    if (!currentEvent?.id) return
 
     const savedInterval = Number.parseInt(localStorage.getItem('fieldMapRefreshInterval') || '', 10)
-    const refreshInterval = Number.isFinite(savedInterval) && savedInterval >= 1000 ? savedInterval : 5000
+    const refreshInterval = Number.isFinite(savedInterval) && savedInterval >= 15000 ? savedInterval : 30000
 
     const refreshTeams = async () => {
       if (isRefreshingTeamsRef.current) return
+      if (!refetchTeamsRef.current) return
       isRefreshingTeamsRef.current = true
 
       try {
-        await refetchTeams({ eventId: currentEvent.id, limit: locationLimit })
+        await refetchTeamsRef.current({ eventId: currentEvent.id, limit: locationLimit })
       } catch (error) {
         console.error('[FieldModePage] Refresh loop teams refetch failed:', error)
       } finally {
@@ -143,7 +149,6 @@ function FieldModePage() {
       }
     }
 
-    refreshTeams()
     refreshIntervalRef.current = setInterval(refreshTeams, refreshInterval)
 
     return () => {
@@ -153,7 +158,7 @@ function FieldModePage() {
       }
       isRefreshingTeamsRef.current = false
     }
-  }, [currentEvent?.id, locationLimit, refetchTeams])
+  }, [currentEvent?.id, locationLimit])
 
   useEffect(() => {
     if (!teamsWithUpdates || teamsWithUpdates.length === 0) return
