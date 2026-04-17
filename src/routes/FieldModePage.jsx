@@ -8,6 +8,15 @@ import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
 import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
 import { preloadEventDataBundle } from '../utils/eventBootstrap'
+import {
+  getEventRefreshQueryOptions,
+  getTeamsRefreshQueryOptions,
+  getWaypointsRefreshQueryOptions,
+  persistEventSnapshot,
+  persistTeamsSnapshot,
+  persistWaypointsSnapshot,
+  readLocalJson,
+} from '../utils/dataRefreshOrchestrator'
 
 /**
  * FieldModePage - Mobile-optimized interface for field organizers
@@ -28,9 +37,9 @@ function FieldModePage() {
 
   useEffect(() => {
     const loadFieldData = async () => {
-      const eventData = localStorage.getItem('currentEvent')
-      const waypointsData = localStorage.getItem('currentWaypoints')
-      const teamsData = localStorage.getItem('currentTeams')
+      const eventData = readLocalJson('currentEvent')
+      const waypointsData = readLocalJson('currentWaypoints')
+      const teamsData = readLocalJson('currentTeams')
 
       if (!eventData) {
         navigate('/login', { replace: true })
@@ -38,7 +47,7 @@ function FieldModePage() {
       }
 
       try {
-        const event = JSON.parse(eventData)
+        const event = eventData
         if (event?.access_level !== 'field') {
           console.warn('[FieldModePage] Not a field access session')
           navigate('/login', { replace: true })
@@ -48,11 +57,16 @@ function FieldModePage() {
         setCurrentEvent(event)
 
         if (waypointsData) {
-          setCurrentWaypoints(JSON.parse(waypointsData))
+          setCurrentWaypoints(Array.isArray(waypointsData) ? waypointsData : [])
+        }
+
+        const cachedTeams = Array.isArray(teamsData) ? teamsData : []
+        if (cachedTeams.length > 0) {
+          setTeamsWithUpdates(trimTeamsToLimit(cachedTeams, getTeamUpdateLimit(event?.update_frequency, event?.access_level || 'field')))
         }
 
         // On browser reload ensure event, teams and waypoints are restored to localStorage.
-        if (!teamsData || !waypointsData) {
+        if (!waypointsData || cachedTeams.length === 0) {
           const bundle = await preloadEventDataBundle(event.id)
           if (bundle?.event) {
             setCurrentEvent((current) => ({
@@ -60,6 +74,11 @@ function FieldModePage() {
               ...bundle.event,
               access_level: event.access_level,
             }))
+          }
+          if (Array.isArray(bundle?.teams)) {
+            const bundleTeams = trimTeamsToLimit(bundle.teams, getTeamUpdateLimit(event?.update_frequency, event?.access_level || 'field'))
+            setTeamsWithUpdates(bundleTeams)
+            persistTeamsSnapshot(bundleTeams, getTeamUpdateLimit(event?.update_frequency, event?.access_level || 'field'))
           }
           if (Array.isArray(bundle?.waypoints)) {
             setCurrentWaypoints(bundle.waypoints)
@@ -101,23 +120,18 @@ function FieldModePage() {
   const updateFrequencyMs = currentEvent?.update_frequency || 10000
   const locationLimit = getTeamUpdateLimit(updateFrequencyMs, currentEvent?.access_level || 'field')
 
-  const { data: latestEventData } = useQuery(GET_EVENT, {
-    variables: { id: currentEvent?.id },
-    skip: !currentEvent?.id,
-    fetchPolicy: 'network-only',
-    pollInterval: 30000,
-  })
+  const { data: latestEventData } = useQuery(GET_EVENT, getEventRefreshQueryOptions(currentEvent?.id))
 
   useEffect(() => {
-    const storedTeamsData = localStorage.getItem('currentTeams')
+    const storedTeamsData = readLocalJson('currentTeams')
     if (!storedTeamsData) return
 
     try {
-      const parsedTeams = JSON.parse(storedTeamsData)
-      if (Array.isArray(parsedTeams) && parsedTeams.length > 0) {
+      const parsedTeams = storedTeamsData
+      if (Array.isArray(parsedTeams)) {
         const trimmedTeams = trimTeamsToLimit(parsedTeams, locationLimit)
         setTeamsWithUpdates(trimmedTeams)
-        localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+        persistTeamsSnapshot(trimmedTeams, locationLimit)
       }
     } catch (error) {
       console.error('[FieldModePage] Failed to parse currentTeams:', error)
@@ -129,13 +143,7 @@ function FieldModePage() {
     data: teamsData,
     loading: teamsLoading,
     error: teamsError,
-  } = useQuery(GET_TEAMS, {
-    variables: { eventId: currentEvent?.id, limit: locationLimit },
-    skip: !currentEvent?.id,
-    fetchPolicy: 'cache-and-network',
-    notifyOnNetworkStatusChange: true,
-    pollInterval: 30000,
-  })
+  } = useQuery(GET_TEAMS, getTeamsRefreshQueryOptions(currentEvent?.id, locationLimit))
 
   if (teamsError) {
     console.error('[FieldModePage] Teams query error:', teamsError?.message)
@@ -147,10 +155,8 @@ function FieldModePage() {
   useEffect(() => {
     if (!teamsData?.teams) return
 
-    const trimmedTeams = trimTeamsToLimit(teamsData.teams, locationLimit)
-
-    setTeamsWithUpdates(trimmedTeams)
-    localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+    const normalizedTeams = persistTeamsSnapshot(teamsData.teams, locationLimit)
+    setTeamsWithUpdates(normalizedTeams)
   }, [teamsData?.teams, locationLimit])
 
   useEffect(() => {
@@ -172,10 +178,10 @@ function FieldModePage() {
         return prev
       }
 
-      localStorage.setItem('currentEvent', JSON.stringify(updatedEvent))
+      persistEventSnapshot(updatedEvent)
       return updatedEvent
     })
-  }, [latestEventData, currentEvent])
+  }, [latestEventData])
 
   useEffect(() => {
     if (!teamsWithUpdates || teamsWithUpdates.length === 0) return
@@ -186,16 +192,11 @@ function FieldModePage() {
     }
 
     setTeamsWithUpdates(trimmedTeams)
-    localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+    persistTeamsSnapshot(trimmedTeams, locationLimit)
   }, [teamsWithUpdates, locationLimit])
 
   // Fetch waypoints for this event (poll every 5 minutes)
-  const { data: waypointsData, error: waypointsError } = useQuery(GET_WAYPOINTS, {
-    variables: { eventId: currentEvent?.id },
-    skip: !currentEvent?.id,
-    fetchPolicy: 'cache-and-network',
-    pollInterval: 300000, // Poll every 5 minutes (300 seconds) for field operations
-  })
+  const { data: waypointsData, error: waypointsError } = useQuery(GET_WAYPOINTS, getWaypointsRefreshQueryOptions(currentEvent?.id))
 
   if (waypointsError) {
     console.error('[FieldModePage] Waypoints query error:', waypointsError?.message)
@@ -205,8 +206,8 @@ function FieldModePage() {
     if (!waypointsData?.waypoints) return
 
     console.log('[FieldModePage] Waypoints fetched:', waypointsData.waypoints.length, 'waypoints')
-    setCurrentWaypoints(waypointsData.waypoints)
-    localStorage.setItem('currentWaypoints', JSON.stringify(waypointsData.waypoints))
+    const normalizedWaypoints = persistWaypointsSnapshot(waypointsData.waypoints)
+    setCurrentWaypoints(normalizedWaypoints)
   }, [waypointsData?.waypoints])
 
   // Debug logging

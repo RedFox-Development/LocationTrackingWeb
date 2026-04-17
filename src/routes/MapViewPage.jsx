@@ -7,6 +7,13 @@ import { GET_EVENT } from '../api/graphql/event'
 import { mergeEventWithAuthFields } from '../utils/eventAccess'
 import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
 import { preloadEventDataBundle } from '../utils/eventBootstrap'
+import {
+  getEventRefreshQueryOptions,
+  getTeamsRefreshQueryOptions,
+  persistEventSnapshot,
+  persistTeamsSnapshot,
+  readLocalJson,
+} from '../utils/dataRefreshOrchestrator'
 
 function MapViewPage() {
   const navigate = useNavigate()
@@ -14,46 +21,36 @@ function MapViewPage() {
   const [teams, setTeams] = useState([])
   const locationLimit = getTeamUpdateLimit(event?.update_frequency, event?.access_level || 'manage')
 
-  const { data: eventData } = useQuery(GET_EVENT, {
-    variables: { id: event?.id },
-    skip: !event?.id,
-    fetchPolicy: 'network-only',
-    pollInterval: 30000,
-  })
+  const { data: eventData } = useQuery(GET_EVENT, getEventRefreshQueryOptions(event?.id))
 
-  const { data: teamsData } = useQuery(GET_TEAMS, {
-    variables: { eventId: event?.id, limit: locationLimit },
-    skip: !event?.id,
-    fetchPolicy: 'cache-and-network',
-    pollInterval: 30000,
-  })
+  const { data: teamsData } = useQuery(GET_TEAMS, getTeamsRefreshQueryOptions(event?.id, locationLimit))
 
   useEffect(() => {
     const loadMapData = async () => {
-      const currentEvent = localStorage.getItem('currentEvent')
-      const currentTeams = localStorage.getItem('currentTeams')
-      const currentWaypoints = localStorage.getItem('currentWaypoints')
+      const currentEvent = readLocalJson('currentEvent')
+      const currentTeams = readLocalJson('currentTeams')
+      const currentWaypoints = readLocalJson('currentWaypoints')
 
       if (!currentEvent) {
         navigate('/login')
         return
       }
 
-      const parsedEvent = JSON.parse(currentEvent)
-      setEvent(parsedEvent)
+      setEvent(currentEvent)
 
-      const bootstrapLimit = getTeamUpdateLimit(parsedEvent?.update_frequency, parsedEvent?.access_level || 'manage')
+      const bootstrapLimit = getTeamUpdateLimit(currentEvent?.update_frequency, currentEvent?.access_level || 'manage')
+      const parsedTeams = Array.isArray(currentTeams) ? currentTeams : []
 
-      if (currentTeams) {
-        setTeams(trimTeamsToLimit(JSON.parse(currentTeams), bootstrapLimit))
+      if (parsedTeams.length > 0) {
+        setTeams(trimTeamsToLimit(parsedTeams, bootstrapLimit))
       }
 
       // On browser reload ensure event, teams and waypoints are restored to localStorage.
-      if (!currentTeams || !currentWaypoints) {
+      if (!currentWaypoints || parsedTeams.length === 0) {
         try {
-          const bundle = await preloadEventDataBundle(parsedEvent.id)
+          const bundle = await preloadEventDataBundle(currentEvent.id)
           if (bundle?.event) {
-            setEvent((current) => mergeEventWithAuthFields(bundle.event, current || parsedEvent))
+            setEvent((current) => mergeEventWithAuthFields(bundle.event, current || currentEvent))
           }
           setTeams(trimTeamsToLimit(bundle?.teams || [], bootstrapLimit))
         } catch (error) {
@@ -67,9 +64,8 @@ function MapViewPage() {
 
   useEffect(() => {
     if (teamsData?.teams) {
-      const trimmedTeams = trimTeamsToLimit(teamsData.teams, locationLimit)
-      setTeams(trimmedTeams)
-      localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+      const normalizedTeams = persistTeamsSnapshot(teamsData.teams, locationLimit)
+      setTeams(normalizedTeams)
     }
   }, [teamsData, locationLimit])
 
@@ -82,14 +78,14 @@ function MapViewPage() {
     }
 
     setTeams(trimmedTeams)
-    localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
+    persistTeamsSnapshot(trimmedTeams, locationLimit)
   }, [teams, locationLimit])
 
   useEffect(() => {
     if (eventData?.event) {
       setEvent((current) => {
         const merged = mergeEventWithAuthFields(eventData.event, current)
-        localStorage.setItem('currentEvent', JSON.stringify(merged))
+        persistEventSnapshot(merged)
         return merged
       })
     }
