@@ -6,6 +6,20 @@ import { graphqlClient } from '../api/graphql/graphqlClient'
 import { hasManageAccess } from '../utils/eventAccess'
 import { preloadEventDataBundle, storeBasicEventData } from '../utils/eventBootstrap'
 
+const getReadableLoginError = (error, fallbackMessage) => {
+  const graphQlMessage = error?.graphQLErrors?.[0]?.message
+  const networkMessage = error?.networkError?.result?.errors?.[0]?.message || error?.networkError?.message
+  const rawMessage = graphQlMessage || networkMessage || error?.message || fallbackMessage
+
+  if (!rawMessage) return fallbackMessage
+
+  if (rawMessage === 'Unexpected error.' || rawMessage === 'Unexpected error') {
+    return 'Login failed. Please verify the event name and keycode.'
+  }
+
+  return rawMessage
+}
+
 function LoginPage() {
   const navigate = useNavigate()
   const [eventName, setEventName] = useState('')
@@ -73,7 +87,7 @@ function LoginPage() {
       navigate(targetPath, { replace: true })
     } catch (err) {
       console.error('[LoginPage] QR login error:', err)
-      setLoginError(err.message || 'Failed to login with QR code')
+      setLoginError(getReadableLoginError(err, 'Failed to login with QR code'))
       setIsBootstrappingEvent(false)
     } finally {
       setIsSubmitting(false)
@@ -224,7 +238,7 @@ function LoginPage() {
       navigate(targetPath, { replace: true })
     } catch (err) {
       console.error('[LoginPage] Query execution error:', err)
-      setLoginError(err.message || 'Failed to execute login query')
+      setLoginError(getReadableLoginError(err, 'Failed to execute login query'))
       setIsBootstrappingEvent(false)
     } finally {
       setIsSubmitting(false)
