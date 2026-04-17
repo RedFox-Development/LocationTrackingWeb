@@ -1,4 +1,5 @@
 export const resolveAccessLevel = (event) => {
+  if (event?.access_level === 'field') return 'field'
   if (event?.access_level === 'view') return 'view'
   return 'manage'
 }
