@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@apollo/client/react'
 import { GET_TEAMS } from '../api/graphql/team'
@@ -23,6 +23,8 @@ function FieldModePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [geofences, setGeofences] = useState([])
   const [teamsWithUpdates, setTeamsWithUpdates] = useState([])
+  const refreshIntervalRef = useRef(null)
+  const isRefreshingTeamsRef = useRef(false)
 
   useEffect(() => {
     const eventData = localStorage.getItem('currentEvent')
@@ -74,7 +76,7 @@ function FieldModePage() {
     setGeofences(parsedGeofences)
   }, [currentEvent?.geofence_data, currentEvent?.id])
 
-  const updateFrequencyMs = currentEvent?.update_frequency || 10000
+  const updateFrequencyMs = currentEvent?.update_frequency || 15000
   const locationLimit = getTeamUpdateLimit(updateFrequencyMs, currentEvent?.access_level || 'field')
 
   useEffect(() => {
@@ -93,13 +95,17 @@ function FieldModePage() {
     }
   }, [locationLimit])
 
-  // Fetch teams for this event, including bounded nested updates (poll every 15 seconds)
-  const { data: teamsData, loading: teamsLoading, error: teamsError } = useQuery(GET_TEAMS, {
+  // Fetch teams for this event, including bounded nested updates.
+  const {
+    data: teamsData,
+    loading: teamsLoading,
+    error: teamsError,
+    refetch: refetchTeams,
+  } = useQuery(GET_TEAMS, {
     variables: { eventId: currentEvent?.id, limit: locationLimit },
     skip: !currentEvent?.id,
     fetchPolicy: 'cache-and-network',
     notifyOnNetworkStatusChange: true,
-    pollInterval: 30000, // Poll every 30 seconds for field operations
   })
 
   if (teamsError) {
@@ -117,6 +123,37 @@ function FieldModePage() {
     setTeamsWithUpdates(trimmedTeams)
     localStorage.setItem('currentTeams', JSON.stringify(trimmedTeams))
   }, [teamsData?.teams, locationLimit])
+
+  useEffect(() => {
+    if (!currentEvent?.id || !refetchTeams) return
+
+    const savedInterval = Number.parseInt(localStorage.getItem('fieldMapRefreshInterval') || '', 10)
+    const refreshInterval = Number.isFinite(savedInterval) && savedInterval >= 1000 ? savedInterval : 5000
+
+    const refreshTeams = async () => {
+      if (isRefreshingTeamsRef.current) return
+      isRefreshingTeamsRef.current = true
+
+      try {
+        await refetchTeams({ eventId: currentEvent.id, limit: locationLimit })
+      } catch (error) {
+        console.error('[FieldModePage] Refresh loop teams refetch failed:', error)
+      } finally {
+        isRefreshingTeamsRef.current = false
+      }
+    }
+
+    refreshTeams()
+    refreshIntervalRef.current = setInterval(refreshTeams, refreshInterval)
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current)
+        refreshIntervalRef.current = null
+      }
+      isRefreshingTeamsRef.current = false
+    }
+  }, [currentEvent?.id, locationLimit, refetchTeams])
 
   useEffect(() => {
     if (!teamsWithUpdates || teamsWithUpdates.length === 0) return

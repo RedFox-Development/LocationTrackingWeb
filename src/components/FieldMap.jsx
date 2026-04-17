@@ -76,6 +76,7 @@ function FieldMap({ event, teams = [], waypoints = [], geofences = [], selectedT
         lng: (geofenceBounds.minLon + geofenceBounds.maxLon) / 2,
       }
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMapCenter(targetCenter)
       const leafletBounds = window.L.latLngBounds(paddedBounds)
       const targetZoom = mapRef.current.getBoundsZoom(leafletBounds, false, [50, 50])
