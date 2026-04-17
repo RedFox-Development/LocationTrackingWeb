@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { LOGIN } from '../api/graphql/login'
 import { GET_EVENT } from '../api/graphql/event'
-import { GET_TEAMS_WITH_UPDATES } from '../api/graphql/team'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 import { graphqlClient } from '../api/graphql/graphqlClient'
 // eslint-disable-next-line no-unused-vars
