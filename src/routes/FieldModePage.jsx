@@ -8,6 +8,7 @@ import FieldDashboard from '../components/FieldDashboard'
 import '../UI/style/field-mode.css'
 import { getTeamUpdateLimit, trimTeamsToLimit } from '../utils/updateLimits'
 import { preloadEventDataBundle } from '../utils/eventBootstrap'
+import { mergeEventWithAuthFields } from '../utils/eventAccess'
 import {
   getEventRefreshQueryOptions,
   getTeamsRefreshQueryOptions,
@@ -69,11 +70,13 @@ function FieldModePage() {
         if (!waypointsData || cachedTeams.length === 0) {
           const bundle = await preloadEventDataBundle(event.id)
           if (bundle?.event) {
-            setCurrentEvent((current) => ({
-              ...(current || event),
-              ...bundle.event,
-              access_level: event.access_level,
-            }))
+            setCurrentEvent((current) => {
+              const merged = mergeEventWithAuthFields(bundle.event, current || event)
+              return {
+                ...merged,
+                access_level: event.access_level,
+              }
+            })
           }
           if (Array.isArray(bundle?.teams)) {
             const bundleTeams = trimTeamsToLimit(bundle.teams, getTeamUpdateLimit(event?.update_frequency, event?.access_level || 'field'))
@@ -143,7 +146,10 @@ function FieldModePage() {
     data: teamsData,
     loading: teamsLoading,
     error: teamsError,
-  } = useQuery(GET_TEAMS, getTeamsRefreshQueryOptions(currentEvent?.id, locationLimit))
+  } = useQuery(GET_TEAMS, {
+    ...getTeamsRefreshQueryOptions(currentEvent?.id, locationLimit),
+    notifyOnNetworkStatusChange: false,
+  })
 
   if (teamsError) {
     console.error('[FieldModePage] Teams query error:', teamsError?.message)
@@ -162,18 +168,20 @@ function FieldModePage() {
   useEffect(() => {
     if (!latestEventData?.event) return
 
-    const updatedEvent = {
-      ...currentEvent,
-      ...latestEventData.event,
-      access_level: currentEvent?.access_level || 'field',
-    }
-
     setCurrentEvent((prev) => {
       if (!prev) return prev
 
+      const merged = mergeEventWithAuthFields(latestEventData.event, prev)
+      const updatedEvent = {
+        ...merged,
+        access_level: prev?.access_level || 'field',
+      }
+
       if (
         prev.update_frequency === updatedEvent.update_frequency &&
-        prev.geofence_data === updatedEvent.geofence_data
+        prev.geofence_data === updatedEvent.geofence_data &&
+        prev.timeframe_start === updatedEvent.timeframe_start &&
+        prev.timeframe_end === updatedEvent.timeframe_end
       ) {
         return prev
       }
