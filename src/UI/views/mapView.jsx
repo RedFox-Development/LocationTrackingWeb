@@ -3,14 +3,12 @@ import { useApolloClient, useQuery } from '@apollo/client/react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
 import { GET_UPDATES } from '../../api/graphql/team'
-import { HEATMAP_EXPORT, TEAM_PATHS_EXPORT, DWELL_POINTS_EXPORT } from '../../api/graphql/event'
 import { GET_WAYPOINTS, GET_WAYPOINT_VISITS } from '../../api/graphql/waypoints'
 import { getGeofence, isPointInPolygon, getPolygonBounds, getPointsBounds } from '../../utils/geofence'
 import { hasManageAccess } from '../../utils/eventAccess'
 import { getTeamUpdateLimit } from '../../utils/updateLimits'
 import { createWaypointIcon } from '../../utils/waypointIcons'
 import { createTeamIcon, getTeamTrailStyle, getHistoryDotStyle } from '../../utils/teamIcons'
-import { downloadProjectedRasterExport, sanitizeFilenameStem } from '../../utils/rasterExports'
 import 'leaflet/dist/leaflet.css'
 import { EventHeader } from '../../components/EventHeader'
 
@@ -101,7 +99,6 @@ function MapView({ event, teams }) {
   })
   const [waypointVisits, setWaypointVisits] = useState([])
   const [isMapFullscreen, setIsMapFullscreen] = useState(false)
-  const [exportState, setExportState] = useState({ kind: null, loading: false, error: null })
   const [_locationRenderVersion, setLocationRenderVersion] = useState(0)
 
   const mapRef = useRef(null)
@@ -483,50 +480,6 @@ function MapView({ event, teams }) {
     await Promise.all([fetchLocationData(), refetchWaypoints()])
   }
 
-  const downloadRasterExport = useCallback(async (queryDocument, kind) => {
-    if (!event?.id || !event?.keycode) {
-      setExportState({ kind, loading: false, error: 'Missing event keycode for export' })
-      return
-    }
-
-    setExportState({ kind, loading: true, error: null })
-
-    try {
-      const { data } = await apolloClient.query({
-        query: queryDocument,
-        variables: {
-          eventId: event.id,
-          keycode: event.keycode,
-          pixelSize: 1024,
-        },
-        fetchPolicy: 'no-cache',
-      })
-
-      const exportPayload = data?.heatmapExport || data?.teamPathsExport || data?.dwellPointsExport
-      if (!exportPayload?.png || !exportPayload?.pgw) {
-        throw new Error('No export data returned from server')
-      }
-
-      const fileStem = `${sanitizeFilenameStem(event.name)}_${kind}_epsg3067`
-      downloadProjectedRasterExport({
-        pngBase64: exportPayload.png,
-        pgwText: exportPayload.pgw,
-        fileStem,
-        pngMimeType: exportPayload.pngMimeType || 'image/png',
-        pgwMimeType: exportPayload.pgwMimeType || 'text/plain',
-      })
-
-      setExportState({ kind, loading: false, error: null })
-    } catch (error) {
-      console.error(`[MapView] ${kind} export failed:`, error)
-      setExportState({ kind, loading: false, error: error.message })
-    }
-  }, [apolloClient, event?.id, event?.keycode, event?.name])
-
-  const handleHeatmapExport = useCallback(() => downloadRasterExport(HEATMAP_EXPORT, 'heatmap'), [downloadRasterExport])
-  const handleTeamPathsExport = useCallback(() => downloadRasterExport(TEAM_PATHS_EXPORT, 'team_paths'), [downloadRasterExport])
-  const handleDwellPointsExport = useCallback(() => downloadRasterExport(DWELL_POINTS_EXPORT, 'dwell_points'), [downloadRasterExport])
-
   const toggleMapFullscreen = useCallback(async () => {
     const mapContainer = mapContainerRef.current
     if (!mapContainer) return
@@ -878,42 +831,7 @@ function MapView({ event, teams }) {
         <button type="button" onClick={toggleMapFullscreen} className="btn-secondary">
           {isMapFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map'}
         </button>
-
-        {canManageEvent && (
-          <div className="control-group" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={handleHeatmapExport}
-              className="btn-secondary"
-              disabled={exportState.loading}
-            >
-              {exportState.loading && exportState.kind === 'heatmap' ? 'Exporting Heatmap...' : 'Export Heatmap PNG'}
-            </button>
-            <button
-              type="button"
-              onClick={handleTeamPathsExport}
-              className="btn-secondary"
-              disabled={exportState.loading}
-            >
-              {exportState.loading && exportState.kind === 'team_paths' ? 'Exporting Paths...' : 'Export Team Paths PNG'}
-            </button>
-            <button
-              type="button"
-              onClick={handleDwellPointsExport}
-              className="btn-secondary"
-              disabled={exportState.loading}
-            >
-              {exportState.loading && exportState.kind === 'dwell_points' ? 'Exporting Dwell Points...' : 'Export Dwell Points PNG'}
-            </button>
-          </div>
-        )}
       </div>
-
-      {exportState.error && (
-        <div style={{ margin: '0 1rem 1rem', color: '#b91c1c', fontSize: '0.9rem' }}>
-          Export error: {exportState.error}
-        </div>
-      )}
 
       <div className="map-layout">
         <div className="teams-sidebar">

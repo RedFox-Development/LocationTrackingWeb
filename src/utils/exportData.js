@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { graphqlClient } from '../api/graphql/graphqlClient'
-import { EXPORT_EVENT_DATA } from '../api/graphql/event'
+import { EXPORT_EVENT_DATA, HEATMAP_EXPORT, TEAM_PATHS_EXPORT, DWELL_POINTS_EXPORT } from '../api/graphql/event'
 import { GET_WAYPOINTS } from '../api/graphql/waypoints'
 
 /**
@@ -25,6 +25,48 @@ const getBinaryBase64 = (rawValue) => {
     return parts.length === 2 ? parts[1] : null
   }
   return rawValue
+}
+
+const addRasterExportFiles = async ({
+  zip,
+  query,
+  responseKey,
+  eventId,
+  keycode,
+  baseName,
+}) => {
+  const { data } = await graphqlClient.query({
+    query,
+    variables: {
+      eventId,
+      keycode,
+      pixelSize: 1024,
+    },
+    fetchPolicy: 'no-cache',
+  })
+
+  const exportPayload = data?.[responseKey]
+  if (!exportPayload?.png || !exportPayload?.pgw) {
+    throw new Error(`No ${baseName} export data returned from server`)
+  }
+
+  const pngBase64 = getBinaryBase64(exportPayload.png)
+  if (pngBase64) {
+    zip.file(`analytics/raster/${baseName}.png`, base64ToBytes(pngBase64), { binary: true })
+  }
+
+  zip.file(`analytics/raster/${baseName}.pgw`, exportPayload.pgw)
+  zip.file(
+    `analytics/raster/${baseName}.json`,
+    JSON.stringify({
+      coordinateSystem: exportPayload.coordinateSystem,
+      bounds: exportPayload.bounds,
+      pixelWidth: exportPayload.pixelWidth,
+      pixelHeight: exportPayload.pixelHeight,
+      pngMimeType: exportPayload.pngMimeType,
+      pgwMimeType: exportPayload.pgwMimeType,
+    }, null, 2)
+  )
 }
 
 /**
@@ -255,6 +297,23 @@ export const exportEventAsZip = async (eventId, keycode, startDate, endDate) => 
       zip.file('analytics/team-metrics.csv', csvHeader + csvRows)
     }
   }
+
+      for (const rasterExport of [
+        { query: HEATMAP_EXPORT, responseKey: 'heatmapExport', baseName: 'heatmap' },
+        { query: TEAM_PATHS_EXPORT, responseKey: 'teamPathsExport', baseName: 'trails' },
+        { query: DWELL_POINTS_EXPORT, responseKey: 'dwellPointsExport', baseName: 'dwell' },
+      ]) {
+        try {
+          await addRasterExportFiles({
+            zip,
+            eventId,
+            keycode,
+            ...rasterExport,
+          })
+        } catch (error) {
+          console.warn(`[exportData] ${rasterExport.baseName} export skipped:`, error)
+        }
+      }
 
   // Add teams.json with summary
   const teamsSummary = exportData.teams.map(team => ({

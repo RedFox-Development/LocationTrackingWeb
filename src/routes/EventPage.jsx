@@ -796,7 +796,7 @@ const EventPage = (props) => {
           <ThreeColumnGrid>
             <p style={{ gridArea: '1 / 1 / 1 / 3', color: 'var(--text-secondary)', fontSize: '1rem' }}>
               Download a complete archive of your event data including teams, locations (GeoJSON & CSV),
-              images, and metadata in a single ZIP file.
+              images, metadata, and georeferenced PNG overlays in a single ZIP file.
             </p>
             {!exportStartDate && !exportEndDate && (<p style={{ gridArea: '2 / 1 / 2 / 3', color: 'var(--text-secondary)', fontSize: '1rem', textDecoration: 'var(--error-color) solid underline 2px' }}>
               If you leave dates empty, all location data will be exported
