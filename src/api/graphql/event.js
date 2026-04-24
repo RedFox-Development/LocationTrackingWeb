@@ -305,6 +305,66 @@ export const EXPORT_EVENT_DATA = gql`
   }
 `
 
+export const HEATMAP_EXPORT = gql`
+  query HeatmapExport($eventId: Int!, $keycode: String!, $pixelSize: Int) {
+    heatmapExport(event_id: $eventId, keycode: $keycode, pixelSize: $pixelSize) {
+      coordinateSystem
+      png
+      pgw
+      pngMimeType
+      pgwMimeType
+      bounds {
+        minEast
+        maxEast
+        minNorth
+        maxNorth
+      }
+      pixelWidth
+      pixelHeight
+    }
+  }
+`
+
+export const TEAM_PATHS_EXPORT = gql`
+  query TeamPathsExport($eventId: Int!, $keycode: String!, $pixelSize: Int) {
+    teamPathsExport(event_id: $eventId, keycode: $keycode, pixelSize: $pixelSize) {
+      coordinateSystem
+      png
+      pgw
+      pngMimeType
+      pgwMimeType
+      bounds {
+        minEast
+        maxEast
+        minNorth
+        maxNorth
+      }
+      pixelWidth
+      pixelHeight
+    }
+  }
+`
+
+export const DWELL_POINTS_EXPORT = gql`
+  query DwellPointsExport($eventId: Int!, $keycode: String!, $pixelSize: Int) {
+    dwellPointsExport(event_id: $eventId, keycode: $keycode, pixelSize: $pixelSize) {
+      coordinateSystem
+      png
+      pgw
+      pngMimeType
+      pgwMimeType
+      bounds {
+        minEast
+        maxEast
+        minNorth
+        maxNorth
+      }
+      pixelWidth
+      pixelHeight
+    }
+  }
+`
+
 export const UPDATE_EVENT_GEOFENCE = gql`
   mutation UpdateEventGeofence(
     $eventId: Int!
