@@ -73,6 +73,7 @@ export const CREATE_EVENT = gql`
       name
       keycode
       view_keycode
+      field_keycode
       access_level
       organization_name
       expiration_date
