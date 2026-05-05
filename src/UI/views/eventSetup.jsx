@@ -43,7 +43,6 @@ function EventSetup({ onEventCreated }) {
     return oneMonthFromNow.toISOString().split('T')[0]
   })
   const [updateFrequency, setUpdateFrequency] = useState(10) // Default 10 seconds
-  const [apiUrl, setApiUrl] = useState(() => '')
   const [eventImage, setEventImage] = useState('')
   const [eventLogo, setEventLogo] = useState('')
   const [error, setError] = useState(null)
@@ -118,7 +117,6 @@ function EventSetup({ onEventCreated }) {
           logoMimeType: logoInfo?.mimeType || null,
           expirationDate: eventExpiration ? `${eventExpiration}T23:59:59Z` : null,
           updateFrequency: updateFrequency * 1000, // Convert seconds to milliseconds
-          apiUrl: apiUrl.trim() || null,
           startDate: null, // Not supported in UI yet
           endDate: null,   // Not supported in UI yet
         }
@@ -140,9 +138,6 @@ function EventSetup({ onEventCreated }) {
             <p><strong>View-Only Keycode:</strong> <code>{createdEvent.view_keycode}</code></p>
             {createdEvent.organization_name && (
               <p><strong>Organization:</strong> {createdEvent.organization_name}</p>
-            )}
-            {createdEvent.api_url && (
-              <p><strong>API URL:</strong> <code>{createdEvent.api_url}</code></p>
             )}
             {createdEvent.expiration_date && (
               <p><strong>Expiration Date:</strong> {formatExpirationDate(createdEvent.expiration_date)}</p>
@@ -187,20 +182,6 @@ function EventSetup({ onEventCreated }) {
               placeholder="Enter organization name (optional)"
               disabled={loading}
             />
-          </div>
-
-          <div className="form-group">
-            <label>API URL</label>
-            <input
-              type="url"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://your-api.vercel.app/api"
-              disabled={loading}
-            />
-            <small style={{ display: 'block', marginTop: '0.25rem', color: 'var(--text-secondary)' }}>
-              GraphQL API endpoint URL. Uses environment variable if not set.
-            </small>
           </div>
 
           <div className="form-group">
