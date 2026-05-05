@@ -55,6 +55,8 @@ export const CREATE_EVENT = gql`
     $timezone: String
     $updateFrequency: Int
     $apiUrl: String
+    $startDate: String
+    $endDate: String
   ) {
     createEvent(
       name: $name
@@ -67,6 +69,8 @@ export const CREATE_EVENT = gql`
       timezone: $timezone
       update_frequency: $updateFrequency
       api_url: $apiUrl
+      start_date: $startDate
+      end_date: $endDate
     ) {
       id
       name
@@ -82,6 +86,8 @@ export const CREATE_EVENT = gql`
       image_mime_type
       logo_data
       logo_mime_type
+      timeframe_start
+      timeframe_end
     }
   }
 `

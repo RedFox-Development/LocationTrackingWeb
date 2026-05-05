@@ -118,7 +118,9 @@ function EventSetup({ onEventCreated }) {
           logoMimeType: logoInfo?.mimeType || null,
           expirationDate: eventExpiration ? `${eventExpiration}T23:59:59Z` : null,
           updateFrequency: updateFrequency * 1000, // Convert seconds to milliseconds
-          apiUrl: apiUrl.trim() || null
+          apiUrl: apiUrl.trim() || null,
+          startDate: null, // Not supported in UI yet
+          endDate: null,   // Not supported in UI yet
         }
       })
     } catch (err) {
