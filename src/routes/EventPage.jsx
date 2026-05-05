@@ -640,7 +640,7 @@ const EventPage = (props) => {
               src={getImageDataUri(event.image_data, event.image_mime_type)} 
               alt="Event" 
               className="manage-image-preview" 
-              style={{ maxWidth: '8rem', borderRadius: '0.5rem', objectFit: 'cover', gridArea: '2 / 1 / 2 / 1' }}
+              style={{ maxWidth: '16rem', borderRadius: '0.5rem', objectFit: 'cover', gridArea: '2 / 1 / 2 / 1' }}
             />
           )}
           {event.logo_data && (
@@ -648,7 +648,7 @@ const EventPage = (props) => {
               src={getImageDataUri(event.logo_data, event.logo_mime_type)} 
               alt="Logo" 
               className="manage-logo-preview" 
-              style={{ maxWidth: '8rem', borderRadius: '0.5rem', objectFit: 'cover', gridArea: '2 / 2 / 2 / 2' }}
+              style={{ maxWidth: '16rem', borderRadius: '0.5rem', objectFit: 'cover', gridArea: '2 / 2 / 2 / 2' }}
             />
           )}
           {event?.field_keycode ? (
