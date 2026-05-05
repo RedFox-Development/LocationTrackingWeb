@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { QRCode } from 'react-qrcode-logo'
-import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE, UPDATE_TEAM_ACCESS_TIMEFRAME, UPDATE_EVENT_UPDATE_FREQUENCY, UPDATE_EVENT_API_URL } from '../api/graphql/event'
+import { GET_EVENT, UPDATE_EVENT_IMAGE, UPDATE_EVENT_LOGO, UPDATE_ORGANIZATION_NAME, UPDATE_EVENT_DEADLINE, UPDATE_TEAM_ACCESS_TIMEFRAME, UPDATE_EVENT_UPDATE_FREQUENCY } from '../api/graphql/event'
 import { parseDataUri } from '../utils/dataUri'
 import { exportEventAsZip } from '../utils/exportData'
 import { getImageDataUri } from '../utils/dataUri'
@@ -18,8 +18,6 @@ const EventPage = (props) => {
   
   const [editingOrgName, setEditingOrgName] = useState(false)
   const [orgNameValue, setOrgNameValue] = useState('')
-  const [editingApiUrl, setEditingApiUrl] = useState(false)
-  const [apiUrlValue, setApiUrlValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -42,7 +40,6 @@ const EventPage = (props) => {
   const [updateEventDeadline] = useMutation(UPDATE_EVENT_DEADLINE)
   const [updateTeamAccessTimeframe] = useMutation(UPDATE_TEAM_ACCESS_TIMEFRAME)
   const [updateEventUpdateFrequency] = useMutation(UPDATE_EVENT_UPDATE_FREQUENCY)
-  const [updateApiUrl] = useMutation(UPDATE_EVENT_API_URL)
 
   const { data: latestEventData } = useQuery(GET_EVENT, {
     variables: { id: event?.id },
@@ -539,79 +536,7 @@ const EventPage = (props) => {
             )}
         </ThreeColumnGrid>
 
-        <h3 style={{ marginBottom: '0.5rem', marginTop: '2rem' }}>API URL</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '100%', gap: '1rem', marginBottom: '2rem', alignItems: 'center'}}>
-          {editingApiUrl ? (
-            <>
-              <input
-                type="url"
-                value={apiUrlValue}
-                onChange={(e) => setApiUrlValue(e.target.value)}
-                placeholder="https://your-api.vercel.app/api"
-                disabled={loading}
-                style={{ maxWidth: '100%', marginBottom: '0.5rem' }}
-              />
-              <small style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                GraphQL API endpoint URL. This is embedded in QR codes for mobile app setup.
-              </small>
-              <div style={{ display: 'flex', gap: '0.5rem', maxWidth: '40%' }}>
-                <button 
-                  onClick={async () => {
-                    try {
-                      setLoading(true)
-                      setError(null)
-                      await updateApiUrl({
-                        variables: {
-                          eventId: event.id,
-                          keycode: event.keycode,
-                          apiUrl: apiUrlValue
-                        }
-                      })
-                      setEditingApiUrl(false)
-                      setSuccess('API URL updated successfully')
-                    } catch (err) {
-                      setError(err.message || 'Failed to update API URL')
-                    } finally {
-                      setLoading(false)
-                    }
-                  }} 
-                  className="btn-primary" 
-                  disabled={loading}
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', flex: 1 }}
-                >
-                  Save
-                </button>
-                <button 
-                  onClick={() => {
-                    setEditingApiUrl(false)
-                    setApiUrlValue(event.api_url || import.meta.env.VITE_API_URL || '')
-                  }} 
-                  className="btn-secondary"
-                  disabled={loading}
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', flex: 1 }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p style={{ margin: '0.5rem 0', wordBreak: 'break-all' }}>{event.api_url || import.meta.env.VITE_API_URL || 'Not set'}</p>
-              <button 
-                onClick={() => {
-                  setEditingApiUrl(true)
-                  setApiUrlValue(event.api_url || import.meta.env.VITE_API_URL || '')
-                }} 
-                className="btn-secondary"
-                style={{ maxWidth: '20%', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-              >
-                Change API endpoint
-              </button>
-            </>
-          )}
-        </div>
-
-        <h3 style={{ marginBottom: '0.5rem' }}>Team Access Timeframe</h3>
+        <h3 style={{ marginBottom: '0.5rem', marginTop: '2rem' }}>Team Access Timeframe</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
           Set the access window during which teams can submit location updates. All teams share the same timeframe.
         </p>
