@@ -62,38 +62,18 @@ export const UPDATE_TEAM_COLOR = gql`
   }
 `
 
-export const UPDATE_TEAM_EXPIRATION = gql`
-  mutation UpdateTeamExpiration($teamId: Int!, $eventId: Int!, $keycode: String!, $expirationDate: DateTime) {
-    updateTeamExpiration(
-      team_id: $teamId
-      event_id: $eventId
-      keycode: $keycode
-      expiration_date: $expirationDate
-    ) {
-      id
-      name
-      color
-      event_id
-      expiration_date
-      access_start_date
-      access_end_date
-      activated
-    }
-  }
-`
-
 export const UPDATE_TEAM_ACCESS_TIMEFRAME = gql`
   mutation UpdateTeamAccessTimeframe($eventId: Int!, $keycode: String!, $startDate: DateTime, $endDate: DateTime) {
     updateTeamAccessTimeframe(
       event_id: $eventId
       keycode: $keycode
-      team_access_timeframe_start: $startDate
-      team_access_timeframe_end: $endDate
+      timeframe_start: $startDate
+      timeframe_end: $endDate
     ) {
       id
       name
-      team_access_timeframe_start
-      team_access_timeframe_end
+      timeframe_start
+      timeframe_end
     }
   }
 `

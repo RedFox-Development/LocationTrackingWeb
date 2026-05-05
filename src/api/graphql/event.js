@@ -176,8 +176,8 @@ export const UPDATE_EVENT_DEADLINE = gql`
       name
       expiration_date
       timezone
-      start_date
-      end_date
+      timeframe_start
+      timeframe_end
     }
   }
 `
@@ -194,10 +194,8 @@ export const UPDATE_EVENT_TIMEFRAME = gql`
       name
       expiration_date
       timezone
-      start_date
-      end_date
-      team_access_timeframe_start
-      team_access_timeframe_end
+      timeframe_start
+      timeframe_end
     }
   }
 `
