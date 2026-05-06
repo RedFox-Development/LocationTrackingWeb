@@ -237,9 +237,8 @@ const EventPage = (props) => {
 
   const handleDownloadQRCode = async () => {
     try {
-      // Get the QR code canvas element
-      const qrCanvas = document.querySelector('#field-organizer-qr canvas')
-      if (!qrCanvas) {
+      const qrCanvas = document.getElementById('field-organizer-qr')
+      if (!(qrCanvas instanceof HTMLCanvasElement)) {
         setError('QR code not found')
         return
       }
